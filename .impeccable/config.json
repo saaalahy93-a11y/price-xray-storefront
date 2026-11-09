@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-09T03:41:47.466Z",
+        "reason": "User and branding/channel_identity.md: Inter is a pinned brand identity font"
+      },
+      {
+        "rule": "overused-font",
+        "value": "montserrat",
+        "createdAt": "2026-11-09T03:41:47.481Z",
+        "reason": "User and branding/channel_identity.md: Montserrat is the pinned primary headline font"
+      }
+    ]
+  }
+}
