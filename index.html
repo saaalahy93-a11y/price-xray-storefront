@@ -12630,7 +12630,9 @@
                     <span class="text-xs font-mono font-extrabold text-markup line-through tabular-nums">${d.brandPrice}</span>
                   </div>
                   <p class="text-xs font-semibold text-slate-300 mt-1 leading-snug">
-                    ${d.brand}
+                    <a href="${buildAmazonUrl(d.brand)}" target="_blank" rel="noopener sponsored" class="hover:text-markup underline decoration-dotted" title="Fact-Check Retail Brand Price on Amazon">
+                      ${d.brand} ↗
+                    </a>
                   </p>
                 </div>
 
@@ -12943,6 +12945,9 @@
         </a>
         <a href="https://www.amazon.com/prime?tag=pricexray-20" target="_blank" rel="noopener sponsored" class="inline-flex items-center gap-1 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-mono font-black text-xs px-3 py-1.5 transition">
           <span>🎁 Free 30-Day Prime</span>
+        </a>
+        <a href="./bounties.html" class="inline-flex items-center gap-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-mono font-black text-xs px-3 py-1.5 transition">
+          <span>🏦 9-Bounty &amp; B2B Vault</span>
         </a>
         <a href="https://www.youtube.com/playlist?list=PLDrSvkoLRQ0s" target="_blank" rel="noopener" class="hidden md:inline-flex items-center gap-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-mono font-bold text-xs px-2.5 py-1.5 transition">
           <span>▶ Binge Shorts</span>
