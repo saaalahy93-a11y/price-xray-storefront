@@ -12176,16 +12176,49 @@
 
     function buildAliExpressUrl(twinName) {
       const cleanedTwin = (twinName || "").replace(/\(.*?\)/g, "").trim();
-      return `https://www.aliexpress.com/w/wholesale-${encodeURIComponent(cleanedTwin).replace(/%20/g, "-")}.html?aff_fcid=${ALIEXPRESS_PORTAL_ID}`;
+      return `https://www.aliexpress.com/w/wholesale-${encodeURIComponent(cleanedTwin).replace(/%20/g, "-")}.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL`;
     }
 
     function buildWalmartUrl(query) {
       return `https://www.walmart.com/search?q=${encodeURIComponent(query)}`;
     }
 
-    function buildEbayUrl(query) {
+    function buildEbayUrl(query, dayNum = 1) {
       const cleaned = (query || "").replace(/\(.*?\)/g, "").trim();
-      return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(cleaned)}&mkcid=1&mkrid=711-53200-19255-0&campid=5339000000&customid=pricexray`;
+      const customId = `pricexray-day-${String(dayNum).padStart(3, "0")}`;
+      return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(cleaned)}&mkcid=1&mkrid=711-53200-19255-0&campid=5339000000&customid=${customId}`;
+    }
+
+    function buildAmazonBountyOffer(d) {
+      const text = `${d.category || ""} ${d.title || ""} ${d.twin || ""}`.toLowerCase();
+      if (/tool|wrench|ratchet|caliper|multimeter|chair|desk|monitor|stand|laser|soldering|drill|socket|obd|garage|office/.test(text)) {
+        return {
+          label: "Free Amazon Business B2B Account",
+          url: `https://business.amazon.com?tag=${AMAZON_AFFILIATE_TAG}`
+        };
+      }
+      if (/audio|earbud|headphone|speaker|microphone|dac|amp|sound|anc/.test(text)) {
+        return {
+          label: "30-Day Free Audible + Audiobook",
+          url: `https://www.amazon.com/hz/audible/mlp?tag=${AMAZON_AFFILIATE_TAG}`
+        };
+      }
+      if (/serum|skin|hair|toothbrush|flosser|razor|shave|filter|creatine|electrolyte|supplement|patch|beauty|care/.test(text)) {
+        return {
+          label: "6-Mo $0 Prime + 5% Cashback",
+          url: `https://www.amazon.com/joinyoungadult?tag=${AMAZON_AFFILIATE_TAG}`
+        };
+      }
+      if ((d.rightPrice || 25) <= 22) {
+        return {
+          label: "Amazon Haul $2.99+ OEM Store",
+          url: `https://www.amazon.com/haul/store?tag=${AMAZON_AFFILIATE_TAG}`
+        };
+      }
+      return {
+        label: "30-Day Free Amazon Prime Trial",
+        url: `https://www.amazon.com/prime?tag=${AMAZON_AFFILIATE_TAG}`
+      };
     }
 
     // UI State
@@ -12414,7 +12447,11 @@
         const amazonUrl = buildAmazonUrl(d.query);
         const aliexpressUrl = buildAliExpressUrl(d.aliQuery || d.twin);
         const walmartUrl = buildWalmartUrl(d.query);
-        const ebayUrl = buildEbayUrl(d.twin || d.query);
+        const ebayUrl = buildEbayUrl(d.twin || d.query, d.day);
+        const bountyOffer = buildAmazonBountyOffer(d);
+        const rakutenUrl = STOREFRONT_CONFIG.cpaExtensionUrl;
+        const netAfterCashback = Math.max(0, Math.round((d.rightPrice || 25) - 30));
+        const netCashbackLabel = netAfterCashback === 0 ? "$0 Net w/ £25 Rakuten" : `$${netAfterCashback} Net w/ £25 Rakuten`;
         const hasTeardownNotes = Boolean(d.hook || d.body || d.reveal);
 
         return `
@@ -12606,18 +12643,18 @@
                 </button>
               </div>
 
-              <!-- Secondary Multi-Network Affiliate Buttons: AliExpress Factory Direct, Walmart & eBay Certified Refurb -->
+              <!-- Secondary Multi-Network Affiliate Buttons: AliExpress Factory Direct, Walmart, eBay Certified Refurb, Amazon Bounty & Rakuten Cashback -->
               <div class="mt-2.5 pt-2">
                 <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                  <span>Multi-Associate Direct Supply &amp; Refurb Links</span>
-                  <span class="text-xray font-semibold">4 Networks Verified</span>
+                  <span>Multi-Associate Direct Supply, Refurb &amp; Cashback</span>
+                  <span class="text-xray font-semibold">7 Networks Live</span>
                 </div>
                 <div class="grid grid-cols-3 gap-1.5">
                   <a
                     href="${aliexpressUrl}"
                     target="_blank"
                     rel="noopener sponsored"
-                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-xray font-mono font-bold text-[11px] py-2.5 px-2 transition cursor-pointer"
+                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-xray font-mono font-bold text-[11px] py-2 px-2 transition cursor-pointer"
                   >
                     <span class="truncate">AliExpress OEM</span>
                   </a>
@@ -12625,7 +12662,7 @@
                     href="${walmartUrl}"
                     target="_blank"
                     rel="noopener sponsored"
-                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-slate-200 font-mono font-bold text-[11px] py-2.5 px-2 transition cursor-pointer"
+                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-slate-200 font-mono font-bold text-[11px] py-2 px-2 transition cursor-pointer"
                   >
                     <span class="truncate">Walmart Twin</span>
                   </a>
@@ -12633,9 +12670,27 @@
                     href="${ebayUrl}"
                     target="_blank"
                     rel="noopener sponsored"
-                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-amber-300 font-mono font-bold text-[11px] py-2.5 px-2 transition cursor-pointer"
+                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-amber-300 font-mono font-bold text-[11px] py-2 px-2 transition cursor-pointer"
                   >
                     <span class="truncate">eBay Open-Box</span>
+                  </a>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 mt-1.5">
+                  <a
+                    href="${bountyOffer.url}"
+                    target="_blank"
+                    rel="noopener sponsored"
+                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-emerald-300 font-mono font-bold text-[10px] py-2 px-2 transition cursor-pointer"
+                  >
+                    <span class="truncate">🎁 ${bountyOffer.label}</span>
+                  </a>
+                  <a
+                    href="${rakutenUrl}"
+                    target="_blank"
+                    rel="noopener sponsored"
+                    class="inline-flex items-center justify-center gap-1 rounded-xl bg-carbon hover:bg-surface text-xray font-mono font-bold text-[10px] py-2 px-2 transition cursor-pointer"
+                  >
+                    <span class="truncate">💰 ${netCashbackLabel}</span>
                   </a>
                 </div>
               </div>
