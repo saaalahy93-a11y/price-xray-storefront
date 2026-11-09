@@ -47,7 +47,8 @@ LAUNCH_DATE_UTC = datetime.datetime(2026, 11, 9, 15, 0, 0, tzinfo=datetime.timez
 # 1x/Day Global Buyer-Overlap Window (UTC):
 #   15:00 UTC = 10:00 AM EST / 7:00 AM PST / 3:00 PM GMT / 4:00 PM CET
 #   Gives every Short a full 24-hour algorithmic wave and 100 consecutive days of authority.
-BUYER_PEAK_3X_HOURS_UTC = [15]
+# 4x/Day Global Buyer-Peak Windows (UTC): 01:00, 07:00, 13:00, 19:00 UTC
+BUYER_PEAK_3X_HOURS_UTC = [1, 7, 13, 19]
 DAILY_4X_HOURS_UTC = BUYER_PEAK_3X_HOURS_UTC
 
 
@@ -172,16 +173,17 @@ FLAGSHIP_PLAYLIST_ID = "PLDrSvkoLRQ0s"
 FLAGSHIP_PLAYLIST_URL = f"https://www.youtube.com/playlist?list={FLAGSHIP_PLAYLIST_ID}"
 
 NAMED_BRAND_TITLES_1_TO_10 = {
-    1: "$230 Ray-Ban Frames vs. $24 Mazzucchelli Acetate Factory Twin #Shorts #PriceXRay",
-    2: "$50 Stanley/Yeti Tumbler vs. $19 304-Steel Vacuum Factory Twin #Shorts #PriceXRay",
-    3: "$429 Dyson Supersonic vs. $69 Laifen 110K RPM Factory Twin #Shorts #PriceXRay",
-    4: "$1,600 Herman Miller Chair vs. $149 BIFMA Class-4 Mesh Twin #Shorts #PriceXRay",
-    5: "$70 Twelve South Stand vs. $16 6061-T6 Aluminum Factory Twin #Shorts #PriceXRay",
-    6: "$140 Belkin MagSafe Stand vs. $22 WPC Qi2 15W Factory Twin #Shorts #PriceXRay",
-    7: "$129 Apple Thunderbolt 4 Cable vs. $19 Intel-Certified Twin #Shorts #PriceXRay",
-    8: "$299 Sony/Bose ANC Earbuds vs. $55 Qualcomm -50dB Hybrid Twin #Shorts #PriceXRay",
-    9: "$230 Razer Gaming Keyboard vs. $49 AULA F75 Gasket Twin #Shorts #PriceXRay",
-    10: "$189 BenQ ScreenBar vs. $34 Quntis Ra95+ Optical Light Twin #Shorts #PriceXRay",
+    1: "$230 Ray-Ban vs $24 Acetate Twin #Shorts #AmazonFinds #Dupes #StyleHacks #PriceXRay",
+    2: "$50 Stanley/Yeti vs $19 Steel Twin #Shorts #AmazonFinds #Dupes #EDCHacks #PriceXRay",
+    3: "$429 Dyson vs $69 Laifen 110K Twin #Shorts #AmazonFinds #Dupes #BeautyHacks #PriceXRay",
+    4: "$1,600 Herman Miller vs $149 Mesh Twin #Shorts #AmazonFinds #Dupes #DeskSetup #PriceXRay",
+    5: "$70 Twelve South vs $16 Aluminum Twin #Shorts #AmazonFinds #Dupes #TechHacks #PriceXRay",
+    6: "$140 Belkin MagSafe vs $22 Qi2 Twin #Shorts #AmazonFinds #Dupes #TechHacks #PriceXRay",
+    7: "$129 Apple TB4 Cable vs $19 Intel Twin #Shorts #AmazonFinds #Dupes #TechHacks #PriceXRay",
+    8: "$299 Sony/Bose ANC vs $55 Qualcomm Twin #Shorts #AmazonFinds #Dupes #AudioHacks #PriceXRay",
+    9: "$230 Razer Keyboard vs $49 AULA F75 Twin #Shorts #AmazonFinds #Dupes #GamingSetup #PriceXRay",
+    10: "$189 BenQ ScreenBar vs $34 Quntis Twin #Shorts #AmazonFinds #Dupes #DeskSetup #PriceXRay",
+    11: "$420 Le Creuset vs $79 Lodge Cast-Iron Twin #Shorts #AmazonFinds #Dupes #KitchenHacks #PriceXRay",
 }
 
 
@@ -234,46 +236,67 @@ def extract_clean_entities(raw_name: str) -> list[str]:
     return entities
 
 
+def infer_primary_niche_hashtag(item: dict) -> str:
+    text = f"{item.get('category', '')} {item.get('title', '')} {item.get('left_brand', '')}".lower()
+    if re.search(r"audio|earbud|headphone|speaker|cable|charger|magsafe|qi2|keyboard|mouse|usb|tech|monitor", text):
+        return "#TechHacks"
+    if re.search(r"chair|tool|wrench|ratchet|garage|car|stand|ergonomic|flashlight", text):
+        return "#DeskSetup"
+    if re.search(r"hair|skin|serum|shave|toothbrush|massage|beauty|grooming", text):
+        return "#BeautyHacks"
+    if re.search(r"sunglass|frames|watch|bag|luggage|cooler|jacket|edc|eyewear", text):
+        return "#StyleHacks"
+    return "#KitchenHacks"
+
+
 def build_algorithmic_title(item: dict, day_num: int = None) -> str:
     """
     Constructs a high-CTR, brand-entity-anchored title (<=100 chars) engineered for
-    YouTube Search + Shorts Feed + Entity Co-Visitation Graph.
+    YouTube Search + Shorts Feed + Multi-Hashtag Discovery (5 hashtags per title).
     """
     if day_num is None:
         day_num = int(item.get("day", 1))
     if day_num in NAMED_BRAND_TITLES_1_TO_10:
         return sanitize_yt_text(NAMED_BRAND_TITLES_1_TO_10[day_num])[:100]
-    if item.get("youtube_title"):
-        return sanitize_yt_text(str(item["youtube_title"]))[:100]
 
-    base_title = re.sub(r"\s*#shorts\b", "", item.get("title", ""), flags=re.I).strip()
-    base_title = re.sub(r"\s*#pricexray\b", "", base_title, flags=re.I).strip()
+    niche_ht = infer_primary_niche_hashtag(item)
+    multi_suffix = f" #Shorts #AmazonFinds #Dupes {niche_ht} #PriceXRay"
+
+    base_title = re.sub(r"#[A-Za-z0-9_]+", "", str(item.get("youtube_title") or item.get("title", ""))).strip()
+    base_title = re.sub(r"\(.*?\)", "", base_title).strip()
+    base_title = re.sub(r"\s+Factory Twin$", " Twin", base_title, flags=re.I).strip()
+
     brand_entities = extract_clean_entities(item.get("left_brand", ""))
     primary_brand = brand_entities[0] if brand_entities else ""
 
     if primary_brand and primary_brand.split()[0].lower() not in base_title.lower():
         candidate = f"{primary_brand}: {base_title}"
-        if len(candidate) + 19 <= 100:
+        if len(candidate) + len(multi_suffix) <= 100:
             base_title = candidate
 
-    suffix = " #Shorts #PriceXRay"
-    max_base = 100 - len(suffix)
+    max_base = 100 - len(multi_suffix)
     if len(base_title) > max_base:
-        base_title = base_title[:max_base].rsplit(" ", 1)[0].rstrip(" ,;-+/(.")
-    return sanitize_yt_text(f"{base_title}{suffix}")[:100]
+        # Compact "vs." -> "vs" and trim cleanly at word boundary so all 5 hashtags fit in 100 chars
+        base_title = base_title.replace(" vs. ", " vs ").replace("Twin", "").strip()
+        if len(base_title) > max_base:
+            base_title = base_title[:max_base].rsplit(" ", 1)[0].rstrip(" ,;-+/(.")
+    return sanitize_yt_text(f"{base_title}{multi_suffix}")[:100]
 
 
 def infer_niche_hashtags(item: dict) -> str:
     text = f"{item.get('category', '')} {item.get('title', '')} {item.get('left_brand', '')}".lower()
+    brand_words = re.sub(r"[^a-zA-Z0-9]", "", (extract_clean_entities(item.get("left_brand", "")) or ["Brand"])[0])
+    twin_words = re.sub(r"[^a-zA-Z0-9]", "", (extract_clean_entities(item.get("right_twin", "")) or ["Twin"])[0])
+    entity_tags = f"#{brand_words} #{brand_words}Dupe #{twin_words}" if brand_words else ""
     if re.search(r"audio|earbud|headphone|speaker|cable|charger|magsafe|qi2|keyboard|mouse|usb|tech|monitor", text):
-        return "#TechHacks #GadgetReview #DeskSetup"
+        return f"#TechHacks #GadgetReview #DeskSetup #TechDeals #PCSetup #EverydayCarry {entity_tags}".strip()
     if re.search(r"chair|tool|wrench|ratchet|garage|car|stand|ergonomic|flashlight", text):
-        return "#WorkspaceSetup #ToolTok #HomeOffice"
+        return f"#WorkspaceSetup #ToolTok #HomeOffice #DeskSetup #ErgonomicChair #DIYTools {entity_tags}".strip()
     if re.search(r"hair|skin|serum|shave|toothbrush|massage|beauty|grooming", text):
-        return "#BeautyHacks #GroomingHacks #SelfCare"
+        return f"#BeautyHacks #GroomingHacks #SelfCare #SkincareDupes #BeautyDupes #Haircare {entity_tags}".strip()
     if re.search(r"sunglass|frames|watch|bag|luggage|cooler|jacket|edc|eyewear", text):
-        return "#StyleHacks #MensFashion #EDC"
-    return "#KitchenHacks #HomeEssentials #SmartShopping"
+        return f"#StyleHacks #MensFashion #EDC #LuxuryDupes #DesignerDupes #Streetwear {entity_tags}".strip()
+    return f"#KitchenHacks #HomeEssentials #Cookware #HomeGadgets #KitchenFinds #ChefTools {entity_tags}".strip()
 
 
 def build_buyer_seo_tags(item: dict) -> list[str]:
@@ -400,7 +423,7 @@ def build_description(item, day_num=None):
         f"🔥 Episode #01 ($230 / £180 Ray-Ban vs $24 / £19 Mazzucchelli Twin): https://youtube.com/shorts/dXFV2ovYQts\n\n"
         f"🔎 High-Intent Buyer Topics: {left_brand} vs {right_twin}, is {left_brand} worth it, "
         f"best {left_brand} alternative 2026 UK & US, {right_twin} review, {left_brand} dupe, same factory OEM products.\n\n"
-        f"#Shorts #PriceXRay #FactoryTwin #AmazonFinds #UKDeals #SmartShopping {niche_tags}\n\n"
+        f"#Shorts #YouTubeShorts #PriceXRay #FactoryTwin #SameFactory #AmazonFinds #AmazonUK #UKDeals #USDeals #Dupes #DupesVsOriginals #SmartShopping #MoneySavingTips #OverpricedBrands #TikTokMadeMeBuyIt #AmazonMustHaves #ViralProducts {niche_tags}\n\n"
         f"FTC & UK ASA Disclosure: Operated by ANKH ENTERPRISE LTD (CRN 17511325, 66 Paul Street, London, EC2A 4NA). As an Amazon Associate (US Store ID: {AMAZON_TAG} | UK Store ID: {AMAZON_UK_TAG}), eBay Partner (8158522), Walmart/Impact & AliExpress (_c3Z2E4OR) affiliate partner, Price X-Ray earns from qualifying purchases at zero additional cost to you."
     )
     return sanitize_yt_text(raw)[:4950]
@@ -769,18 +792,24 @@ def ensure_launch_cluster_and_above_fold_links(youtube, all_days):
     """
     uploaded = load_uploaded_log()
     changed = False
-    for day_num in [1, 2, 3, 4]:
+    for day_num in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
         day_str = str(day_num)
         if day_str not in uploaded or day_num not in all_days:
             continue
         info = uploaded[day_str]
-        if info.get("launch_cluster_v2_synced"):
+        if info.get("multi_hashtag_v2_synced"):
             continue
         video_id = info["video_id"]
         item = all_days[day_num]
         title = build_algorithmic_title(item, day_num)
         description = build_description(item, day_num)
         tags = build_buyer_seo_tags(item)
+        is_launch_public = (day_num in [1, 2, 3, 4]) or (info.get("status") == "PUBLIC_LIVE")
+        status_body = {"privacyStatus": "public", "selfDeclaredMadeForKids": False} if is_launch_public else {
+            "privacyStatus": "private",
+            "publishAt": info.get("publish_at", "2026-11-11T13:00:00Z"),
+            "selfDeclaredMadeForKids": False,
+        }
         try:
             youtube.videos().update(
                 part="snippet,status,localizations",
@@ -794,20 +823,19 @@ def ensure_launch_cluster_and_above_fold_links(youtube, all_days):
                         "defaultLanguage": "en-US",
                         "defaultAudioLanguage": "en-US",
                     },
-                    "status": {
-                        "privacyStatus": "public",
-                        "selfDeclaredMadeForKids": False,
-                    },
+                    "status": status_body,
                     "localizations": build_tier1_localizations(title, description),
                 },
             ).execute()
-            info["status"] = "PUBLIC_LIVE"
-            info.pop("publish_at", None)
+            if is_launch_public:
+                info["status"] = "PUBLIC_LIVE"
+                info.pop("publish_at", None)
             info["title"] = title
             info["launch_cluster_v2_synced"] = True
+            info["multi_hashtag_v2_synced"] = True
             changed = True
-            print(f"✓ Promoted Day {day_num:02d} ({video_id}) into 4-Vertical PUBLIC Launch Cluster + Line-1 Click Magnet!", flush=True)
-            if not info.get("comment_posted"):
+            print(f"✓ Synced 5-Hashtag Title & 26-Hashtag Metadata on Day {day_num:02d} ({video_id}): {title}", flush=True)
+            if is_launch_public and not info.get("comment_posted"):
                 post_affiliate_comment(youtube, video_id, item)
                 info["comment_posted"] = True
         except Exception as e:
@@ -1027,7 +1055,7 @@ def generate_next_4x_daily_slots(uploaded, count):
     return slots
 
 
-def upload_day(youtube, item, publish_at_iso=None, post_comment=False, set_thumbnail=False):
+def upload_day(youtube, item, publish_at_iso=None, post_comment=False, set_thumbnail=True):
     from googleapiclient.http import MediaFileUpload
 
     day_num = item["day"]
@@ -1071,8 +1099,9 @@ def upload_day(youtube, item, publish_at_iso=None, post_comment=False, set_thumb
     status_label = f"SCHEDULED ({publish_at_iso})" if publish_at_iso else "PUBLIC LIVE"
     print(f"✓ Uploaded Day {day_num:02d} [{status_label}] -> https://youtube.com/shorts/{video_id}", flush=True)
 
-    # Generate local SRT caption file (0 API quota units)
+    # Generate & upload verified SRT caption file
     generate_srt_caption(item, day_num)
+    upload_video_captions(youtube, video_id, item, day_num)
 
     # Automatically link into the Flagship Series Playlist for session-chaining (50 quota units)
     try:
@@ -1225,9 +1254,11 @@ def main():
             print("🎉 All available episodes in the 100-video library are already uploaded and scheduled!", flush=True)
             return
         slots = generate_next_4x_daily_slots(uploaded, len(target_days))
-        for d, pub_iso in zip(target_days, slots):
+        for idx_b, (d, pub_iso) in enumerate(zip(target_days, slots)):
+            # Publish the first video of the batch (e.g. Day 11 V2 Studio) immediately as PUBLIC LIVE!
+            use_pub = None if (idx_b == 0 and d == 11) else pub_iso
             try:
-                upload_day(yt, all_days[d], publish_at_iso=pub_iso, post_comment=False)
+                upload_day(yt, all_days[d], publish_at_iso=use_pub, post_comment=(use_pub is None), set_thumbnail=True)
             except Exception as e:
                 err_str = str(e)
                 if "uploadLimitExceeded" in err_str or "quotaExceeded" in err_str:
@@ -1259,7 +1290,18 @@ def main():
             pub_dt = LAUNCH_DATE_UTC + datetime.timedelta(days=idx)
             pub_iso = pub_dt.isoformat().replace("+00:00", "Z")
 
-        upload_day(yt, all_days[d], pub_iso, post_comment=(pub_iso is None))
+        try:
+            upload_day(yt, all_days[d], pub_iso, post_comment=(pub_iso is None), set_thumbnail=True)
+        except Exception as e:
+            err_str = str(e)
+            if "uploadLimitExceeded" in err_str or "quotaExceeded" in err_str:
+                print(
+                    f"⏸ Reached YouTube 24h rolling upload limit at Day {d:02d}. "
+                    f"Next cloud scheduler run will automatically publish Day {d:02d} once the 24h window resets.",
+                    flush=True,
+                )
+                break
+            raise
 
 
 if __name__ == "__main__":
