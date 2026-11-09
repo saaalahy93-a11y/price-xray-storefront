@@ -1,0 +1,10 @@
+# Never commit OAuth tokens or large video binaries to the public repo
+youtube_token.json
+client_secrets.json
+videos/
+upload_ready_30_days/
+upload_ready_100_days/
+*.tar
+*.mp4
+__pycache__/
+.DS_Store
