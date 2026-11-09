@@ -3,10 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <title>Price X-Ray (@PriceXRay) — Official Unblurred OEM Factory Twin Dossier (#1–#100)</title>
-  <meta name="description" content="Same Factory. Same Specs. 80% Less. We X-Ray the Markup. Search Episodes #1–#100 from @PriceXRay to unlock verified OEM Factory Twin links, lab spec breakdowns, and our free price-checker tool." />
+  <title>Price X-Ray (@PriceXRay) — Official Unblurred OEM Factory Twin Dossier (#1–#600)</title>
+  <meta name="description" content="Same Factory. Same Specs. 80% Less. We X-Ray the Markup. Search Episodes #1–#600 from @PriceXRay to unlock verified OEM Factory Twin links, lab spec breakdowns, and £25/$30 cashback bonuses." />
   <meta name="theme-color" content="#0B0E14" />
   <meta name='impact-site-verification' value='8601fafe-4b95-43ee-8a45-9c849c70173b'>
+  <link rel="canonical" href="https://saaalahy93-a11y.github.io/price-xray-storefront/" />
+  <meta property="og:title" content="Price X-Ray (@PriceXRay) — 600 Unblurred OEM Factory Twins" />
+  <meta property="og:description" content="Same Factory. Same Specs. 80% Less. Search all 600 verified OEM Factory Twin teardowns across Amazon Prime, AliExpress Direct, Walmart, eBay Open-Box & Rakuten £25/$30 Cashback." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://saaalahy93-a11y.github.io/price-xray-storefront/" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "name": "Price X-Ray Labs (ANKH ENTERPRISE LTD)",
+        "legalName": "ANKH ENTERPRISE LTD",
+        "taxID": "CRN 17511325",
+        "url": "https://saaalahy93-a11y.github.io/price-xray-storefront/",
+        "sameAs": ["https://www.youtube.com/@PriceXRay"],
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "66 Paul Street",
+          "addressLocality": "London",
+          "postalCode": "EC2A 4NA",
+          "addressCountry": "GB"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "name": "Price X-Ray (@PriceXRay) Official 600-Item OEM Factory Twin Dossier",
+        "url": "https://saaalahy93-a11y.github.io/price-xray-storefront/"
+      }
+    ]
+  }
+  </script>
 
   <!-- Google Fonts: Montserrat (Display Headlines), Inter (UI & Body), JetBrains Mono (Forensic BOM & Telemetry) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -352,7 +384,19 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-2 self-start sm:self-end">
+        <div class="flex flex-wrap items-center gap-2 self-start sm:self-end">
+          <label for="region-select" class="sr-only">Select Storefront Country / Store Region</label>
+          <select
+            id="region-select"
+            aria-label="Global Storefront Geo-Router (OneLink)"
+            class="px-3 py-2 rounded-xl bg-panel hover:bg-surface border border-slate-800 text-xs font-mono font-bold text-slate-200 transition cursor-pointer"
+          >
+            <option value="US">🇺🇸 Store: US (USD)</option>
+            <option value="UK">🇬🇧 Store: UK (GBP)</option>
+            <option value="CA">🇨🇦 Store: CA (CAD)</option>
+            <option value="DE">🇩🇪 Store: EU/DE (EUR)</option>
+            <option value="AU">🇦🇺 Store: AU (AUD)</option>
+          </select>
           <a
             href="#search-input"
             class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-panel hover:bg-surface border border-slate-800 text-xs font-mono font-bold text-xray transition cursor-pointer"
@@ -360,7 +404,7 @@
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.3-4.3"/>
             </svg>
-            <span>Jump to Episode (<span id="header-range-label">#1–#100</span>)</span>
+            <span>Jump to Episode (<span id="header-range-label">#1–#600</span>)</span>
           </a>
         </div>
       </div>
@@ -12169,9 +12213,43 @@
     let DEALS = INITIAL_DEALS_DATA.map((item, idx) => normalizeEpisode(item, idx));
     let DEALS_DATA = DEALS;
 
-    // Multi-Network Affiliate URL Builders
+    // Global OneLink & EPN Regional Geo-Routing Engine (US / UK / CA / DE / AU)
+    const AMAZON_REGIONAL_DOMAINS = {
+      US: "www.amazon.com",
+      UK: "www.amazon.co.uk",
+      CA: "www.amazon.ca",
+      DE: "www.amazon.de",
+      AU: "www.amazon.com.au"
+    };
+
+    const EBAY_REGIONAL_CONFIG = {
+      US: { domain: "www.ebay.com", mkrid: "711-53200-19255-0" },
+      UK: { domain: "www.ebay.co.uk", mkrid: "710-53481-19255-0" },
+      CA: { domain: "www.ebay.ca", mkrid: "706-53473-19255-0" },
+      DE: { domain: "www.ebay.de", mkrid: "707-53477-19255-0" },
+      AU: { domain: "www.ebay.com.au", mkrid: "705-53470-19255-0" }
+    };
+
+    function detectInitialRegion() {
+      try {
+        const saved = localStorage.getItem("pricexray_region");
+        if (saved && AMAZON_REGIONAL_DOMAINS[saved]) return saved;
+        const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || "").toLowerCase();
+        const lang = (navigator.language || "").toLowerCase();
+        if (tz.includes("london") || tz.includes("belfast") || lang.endsWith("-gb")) return "UK";
+        if (tz.includes("toronto") || tz.includes("vancouver") || tz.includes("montreal") || lang.endsWith("-ca")) return "CA";
+        if (tz.includes("berlin") || tz.includes("vienna") || tz.includes("zurich") || lang.startsWith("de")) return "DE";
+        if (tz.includes("sydney") || tz.includes("melbourne") || tz.includes("brisbane") || lang.endsWith("-au")) return "AU";
+      } catch (e) {}
+      return "US";
+    }
+
+    let activeRegion = detectInitialRegion();
+
+    // Multi-Network Affiliate URL Builders (Geo-Routed)
     function buildAmazonUrl(query) {
-      return `https://www.amazon.com/s?k=${encodeURIComponent(query)}&tag=${AMAZON_AFFILIATE_TAG}`;
+      const domain = AMAZON_REGIONAL_DOMAINS[activeRegion] || AMAZON_REGIONAL_DOMAINS.US;
+      return `https://${domain}/s?k=${encodeURIComponent(query)}&tag=${AMAZON_AFFILIATE_TAG}`;
     }
 
     function buildAliExpressUrl(twinName) {
@@ -12185,11 +12263,13 @@
 
     function buildEbayUrl(query, dayNum = 1) {
       const cleaned = (query || "").replace(/\(.*?\)/g, "").trim();
-      const customId = `pricexray-day-${String(dayNum).padStart(3, "0")}`;
-      return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(cleaned)}&mkcid=1&mkrid=711-53200-19255-0&campid=5339000000&customid=${customId}`;
+      const cfg = EBAY_REGIONAL_CONFIG[activeRegion] || EBAY_REGIONAL_CONFIG.US;
+      const customId = `pricexray-day-${String(dayNum).padStart(3, "0")}-${activeRegion.toLowerCase()}`;
+      return `https://${cfg.domain}/sch/i.html?_nkw=${encodeURIComponent(cleaned)}&mkcid=1&mkrid=${cfg.mkrid}&campid=5339000000&customid=${customId}`;
     }
 
     function buildAmazonBountyOffer(d) {
+      const domain = AMAZON_REGIONAL_DOMAINS[activeRegion] || AMAZON_REGIONAL_DOMAINS.US;
       const text = `${d.category || ""} ${d.title || ""} ${d.twin || ""}`.toLowerCase();
       if (/tool|wrench|ratchet|caliper|multimeter|chair|desk|monitor|stand|laser|soldering|drill|socket|obd|garage|office/.test(text)) {
         return {
@@ -12200,24 +12280,24 @@
       if (/audio|earbud|headphone|speaker|microphone|dac|amp|sound|anc/.test(text)) {
         return {
           label: "30-Day Free Audible + Audiobook",
-          url: `https://www.amazon.com/hz/audible/mlp?tag=${AMAZON_AFFILIATE_TAG}`
+          url: `https://${domain}/hz/audible/mlp?tag=${AMAZON_AFFILIATE_TAG}`
         };
       }
       if (/serum|skin|hair|toothbrush|flosser|razor|shave|filter|creatine|electrolyte|supplement|patch|beauty|care/.test(text)) {
         return {
           label: "6-Mo $0 Prime + 5% Cashback",
-          url: `https://www.amazon.com/joinyoungadult?tag=${AMAZON_AFFILIATE_TAG}`
+          url: `https://${domain}/joinyoungadult?tag=${AMAZON_AFFILIATE_TAG}`
         };
       }
       if ((d.rightPrice || 25) <= 22) {
         return {
           label: "Amazon Haul $2.99+ OEM Store",
-          url: `https://www.amazon.com/haul/store?tag=${AMAZON_AFFILIATE_TAG}`
+          url: `https://${domain}/haul/store?tag=${AMAZON_AFFILIATE_TAG}`
         };
       }
       return {
         label: "30-Day Free Amazon Prime Trial",
-        url: `https://www.amazon.com/prime?tag=${AMAZON_AFFILIATE_TAG}`
+        url: `https://${domain}/prime?tag=${AMAZON_AFFILIATE_TAG}`
       };
     }
 
@@ -12242,6 +12322,15 @@
     const headerRangeLabel = document.getElementById("header-range-label");
     const allCatLabel = document.getElementById("all-cat-label");
     const sortSelect = document.getElementById("sort-select");
+    const regionSelect = document.getElementById("region-select");
+    if (regionSelect) {
+      regionSelect.value = activeRegion;
+      regionSelect.addEventListener("change", (e) => {
+        activeRegion = e.target.value;
+        try { localStorage.setItem("pricexray_region", activeRegion); } catch (err) {}
+        renderDeals();
+      });
+    }
 
     function updateCatalogCounters() {
       const total = DEALS.length;
