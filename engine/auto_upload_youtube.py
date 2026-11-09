@@ -41,6 +41,8 @@ TOKEN_FILE = os.path.join(BASE_DIR, "youtube_token.json")
 UPLOADED_LOG = os.path.join(BASE_DIR, "uploaded_videos.json")
 LIVE_STOREFRONT_URL = "https://saaalahy93-a11y.github.io/price-xray-storefront/"
 AMAZON_TAG = "pricexray-20"
+AMAZON_UK_TAG = "pricexray-21"
+GBP_FX_RATE = 0.79
 LAUNCH_DATE_UTC = datetime.datetime(2026, 11, 9, 15, 0, 0, tzinfo=datetime.timezone.utc)
 # 1x/Day Global Buyer-Overlap Window (UTC):
 #   15:00 UTC = 10:00 AM EST / 7:00 AM PST / 3:00 PM GMT / 4:00 PM CET
@@ -104,6 +106,37 @@ def build_amazon_affiliate_url(item):
     raw_query = item.get("amazon_search_query") or item.get("right_twin") or item.get("title", "Factory Twin")
     query = urllib.parse.quote_plus(raw_query)
     return f"https://www.amazon.com/s?k={query}&tag={AMAZON_TAG}"
+
+
+def build_amazon_uk_affiliate_url(item):
+    if item.get("amazon_uk_affiliate_url") and AMAZON_UK_TAG in str(item.get("amazon_uk_affiliate_url")):
+        return item["amazon_uk_affiliate_url"]
+    raw_query = item.get("amazon_search_query") or item.get("right_twin") or item.get("title", "Factory Twin")
+    query = urllib.parse.quote_plus(raw_query)
+    return f"https://www.amazon.co.uk/s?k={query}&tag={AMAZON_UK_TAG}"
+
+
+def build_ebay_uk_epn_url(item):
+    if item.get("ebay_uk_epn_url"):
+        return item["ebay_uk_epn_url"]
+    day_num = int(item.get("day", 1))
+    raw_query = item.get("right_twin") or item.get("amazon_search_query") or item.get("title", "Factory Twin")
+    cleaned = re.sub(r"\(.*?\)", "", raw_query).strip()
+    query = urllib.parse.quote_plus(cleaned)
+    return f"https://www.ebay.co.uk/sch/i.html?_nkw={query}&mkcid=1&mkrid=710-53481-19255-0&campid=5339000000&customid=pricexray-uk-day-{day_num:03d}"
+
+
+def usd_to_gbp_text(text: str) -> str:
+    """Converts $X or $X,XXX values in a string to £Y GBP equivalents (~0.79 FX rate)."""
+    def _repl(m):
+        raw_num = m.group(1).replace(",", "")
+        try:
+            val = float(raw_num)
+            gbp = max(1, int(round(val * GBP_FX_RATE)))
+            return f"£{gbp:,}"
+        except Exception:
+            return m.group(0)
+    return re.sub(r"\$([0-9,]+(?:\.[0-9]+)?)", _repl, text or "")
 
 
 def build_aliexpress_wholesale_url(item):
@@ -314,52 +347,61 @@ def build_description(item, day_num=None):
     next_episode_link = f"{LIVE_STOREFRONT_URL}episodes/day-{next_day:03d}.html"
     prev_episode_link = f"{LIVE_STOREFRONT_URL}episodes/day-{prev_day:03d}.html"
     amazon_link = build_amazon_affiliate_url(item)
+    amazon_uk_link = build_amazon_uk_affiliate_url(item)
     aliexpress_link = build_aliexpress_wholesale_url(item)
     walmart_link = build_walmart_affiliate_url(item)
     ebay_link = build_ebay_epn_url(item)
+    ebay_uk_link = build_ebay_uk_epn_url(item)
     left_brand = item.get("left_brand", "Retail Brand")
     left_price = item.get("left_price", "$300")
     right_twin = item.get("right_twin", "Factory Twin")
     right_price = item.get("right_price", "$20")
+    left_price_gbp = usd_to_gbp_text(str(left_price))
+    right_price_gbp = usd_to_gbp_text(str(right_price))
     dollar_saved, pct_saved, _ = compute_savings_display(item)
+    gbp_saved = usd_to_gbp_text(str(dollar_saved))
     niche_tags = infer_niche_hashtags(item)
     bounty_obj = item.get("amazon_bounty") or {}
     bounty_url = bounty_obj.get("bounty_url") or f"https://www.amazon.com/prime?tag={AMAZON_TAG}"
+    bounty_uk_url = bounty_obj.get("bounty_uk_url") or f"https://www.amazon.co.uk/prime?tag={AMAZON_UK_TAG}"
     bounty_cta = bounty_obj.get("buyer_cta") or "30-Day Free Amazon Prime Trial (Free Same-Day Shipping)"
     net_cashback = item.get("net_price_after_cashback") or "Stack £25 / $30 Rakuten Cashback Bonus"
 
     raw = (
-        f"👇 UNLOCK THE {right_price} TWIN (SAVE {dollar_saved} / {pct_saved}): {seo_episode_link}\n"
-        f"🛒 Direct Amazon Prime Link ({right_twin}): {amazon_link}\n\n"
-        f"{left_brand} ({left_price}) vs. {right_twin} ({right_price}) — Save {dollar_saved} ({pct_saved})! "
+        f"👇 UNLOCK THE {right_price} / {right_price_gbp} TWIN (SAVE {dollar_saved} / {gbp_saved} • {pct_saved}): {seo_episode_link}\n"
+        f"🇺🇸 US Amazon Prime ({right_twin}): {amazon_link}\n"
+        f"🇬🇧 UK Amazon.co.uk Prime ({right_twin}): {amazon_uk_link}\n\n"
+        f"{left_brand} ({left_price} / {left_price_gbp}) vs. {right_twin} ({right_price} / {right_price_gbp}) — Save {dollar_saved} / {gbp_saved} ({pct_saved})! "
         f"{item.get('hook_0_to_4s', '')}\n\n"
-        f"⚡ UNLOCK THE UNBLURRED FACTORY TWIN ({right_twin} — {right_price} | {net_cashback}):\n"
+        f"⚡ UNLOCK THE UNBLURRED FACTORY TWIN ({right_twin} — {right_price} / {right_price_gbp} | {net_cashback}):\n"
         f"🌐 Dedicated Episode Dossier (US/UK/CA/DE/AU Geo-Router): {seo_episode_link}\n"
-        f"🛒 Amazon Prime (Fast Shipping): {amazon_link}\n"
-        f"🎁 Free Trial / Buyer Bonus ({bounty_cta}): {bounty_url}\n"
-        f"🏭 AliExpress / Factory-Direct OEM Wholesale: {aliexpress_link}\n"
+        f"🇺🇸 Amazon.com Prime (US Next-Day): {amazon_link}\n"
+        f"🇬🇧 Amazon.co.uk Prime (UK Next-Day Delivery): {amazon_uk_link}\n"
+        f"🎁 US Free Trial / Buyer Bonus ({bounty_cta}): {bounty_url}\n"
+        f"🎁 UK Free 30-Day Amazon.co.uk Prime Trial: {bounty_uk_url}\n"
+        f"🏭 AliExpress / Factory-Direct OEM Wholesale (US & UK Direct): {aliexpress_link}\n"
         f"🏬 Walmart Price-Match & Retail Twin: {walmart_link}\n"
-        f"📦 eBay Certified Refurbished / Open-Box Deals: {ebay_link}\n"
-        f"💰 £25 / $30 Rakuten Cashback Bonus (Code SAAALA5): https://www.rakuten.co.uk/r/SAAALA5?eeid=26474\n"
+        f"📦 eBay US Open-Box: {ebay_link} | 🇬🇧 eBay.co.uk Open-Box: {ebay_uk_link}\n"
+        f"💰 £25 UK / $30 US Rakuten Cashback Bonus (Code SAAALA5): https://www.rakuten.co.uk/r/SAAALA5?eeid=26474\n"
         f"📂 Full 600-Item Factory Twin Dossier (Episode #{day_num:03d}): {storefront_link}\n\n"
         f"🔬 FORENSIC SUPPLY-CHAIN BREAKDOWN ({left_brand} vs. {right_twin}):\n"
         f"• Smoking Gun Spec: {item.get('smoking_gun_spec', '')}\n"
-        f"• Retail Brand Price: {left_brand} — {left_price}\n"
-        f"• Same-Factory OEM Twin: {right_twin} — {right_price} (You Save {dollar_saved} / {pct_saved})\n\n"
+        f"• Retail Brand Price: {left_brand} — {left_price} ({left_price_gbp} RRP)\n"
+        f"• Same-Factory OEM Twin: {right_twin} — {right_price} ({right_price_gbp}) (You Save {dollar_saved} / {gbp_saved} • {pct_saved})\n\n"
         f"⏱️ VIDEO CHAPTERS & FORENSIC TIMELINE:\n"
-        f"0:00 {left_brand} ({left_price}) vs. {right_twin} ({right_price}) Price Hook\n"
+        f"0:00 {left_brand} ({left_price} / {left_price_gbp}) vs. {right_twin} ({right_price} / {right_price_gbp}) Price Hook\n"
         f"0:05 OEM Supply-Chain & Internal Spec Teardown\n"
-        f"0:24 Unblurred Factory Twin Price Reveal ({right_price})\n"
-        f"0:33 Where to Get the Verified Factory Twin\n\n"
+        f"0:24 Unblurred Factory Twin Price Reveal ({right_price} / {right_price_gbp})\n"
+        f"0:33 Where to Get the Verified Factory Twin (US & UK Links)\n\n"
         f"▶️ BINGE THE NEXT PRICE X-RAY TEARDOWNS (OFFICIAL SERIES):\n"
         f"⏭️ Next Teardown (Episode #{next_day:03d}): {next_episode_link}\n"
         f"⏮️ Previous Teardown (Episode #{prev_day:03d}): {prev_episode_link}\n"
         f"📺 Full Series Playlist: {FLAGSHIP_PLAYLIST_URL}\n"
-        f"🔥 Episode #01 ($230 Ray-Ban vs $24 Mazzucchelli Twin): https://youtube.com/shorts/dXFV2ovYQts\n\n"
+        f"🔥 Episode #01 ($230 / £180 Ray-Ban vs $24 / £19 Mazzucchelli Twin): https://youtube.com/shorts/dXFV2ovYQts\n\n"
         f"🔎 High-Intent Buyer Topics: {left_brand} vs {right_twin}, is {left_brand} worth it, "
-        f"best {left_brand} alternative 2026, {right_twin} review, {left_brand} dupe, same factory OEM products.\n\n"
-        f"#Shorts #PriceXRay #FactoryTwin #AmazonFinds #SmartShopping {niche_tags}\n\n"
-        f"FTC Disclosure: Operated by ANKH ENTERPRISE LTD (CRN 17511325). As an Amazon Associate (Store ID: {AMAZON_TAG}), eBay Partner (8158522), Walmart/Impact & AliExpress (_c3Z2E4OR) affiliate partner, Price X-Ray earns from qualifying purchases at zero additional cost to you."
+        f"best {left_brand} alternative 2026 UK & US, {right_twin} review, {left_brand} dupe, same factory OEM products.\n\n"
+        f"#Shorts #PriceXRay #FactoryTwin #AmazonFinds #UKDeals #SmartShopping {niche_tags}\n\n"
+        f"FTC & UK ASA Disclosure: Operated by ANKH ENTERPRISE LTD (CRN 17511325, 66 Paul Street, London, EC2A 4NA). As an Amazon Associate (US Store ID: {AMAZON_TAG} | UK Store ID: {AMAZON_UK_TAG}), eBay Partner (8158522), Walmart/Impact & AliExpress (_c3Z2E4OR) affiliate partner, Price X-Ray earns from qualifying purchases at zero additional cost to you."
     )
     return sanitize_yt_text(raw)[:4950]
 
@@ -373,32 +415,39 @@ def build_pinned_comment(item, day_num=None):
     next_day = 1 if day_num >= 600 else day_num + 1
     next_episode_link = f"{LIVE_STOREFRONT_URL}episodes/day-{next_day:03d}.html"
     amazon_link = build_amazon_affiliate_url(item)
+    amazon_uk_link = build_amazon_uk_affiliate_url(item)
     aliexpress_link = build_aliexpress_wholesale_url(item)
     walmart_link = build_walmart_affiliate_url(item)
     ebay_link = build_ebay_epn_url(item)
+    ebay_uk_link = build_ebay_uk_epn_url(item)
     left_entities = extract_clean_entities(item.get("left_brand", "Retail Brand"))
     short_left = left_entities[0] if left_entities else item.get("left_brand", "Retail Brand")
     left_price = item.get("left_price", "$300")
     right_twin = item.get("right_twin", "Factory Twin")
     right_price = item.get("right_price", "$20")
+    left_price_gbp = usd_to_gbp_text(str(left_price))
+    right_price_gbp = usd_to_gbp_text(str(right_price))
     dollar_saved, pct_saved, _ = compute_savings_display(item)
+    gbp_saved = usd_to_gbp_text(str(dollar_saved))
     bounty_obj = item.get("amazon_bounty") or {}
     bounty_url = bounty_obj.get("bounty_url") or f"https://www.amazon.com/prime?tag={AMAZON_TAG}"
+    bounty_uk_url = bounty_obj.get("bounty_uk_url") or f"https://www.amazon.co.uk/prime?tag={AMAZON_UK_TAG}"
     bounty_cta = bounty_obj.get("buyer_cta") or "30-Day Free Amazon Prime Trial"
 
     return (
-        f"🔓 UNBLURRED EPISODE #{day_num:03d} LINK ({right_twin} — {right_price} | Save {dollar_saved} / {pct_saved}):\n"
+        f"🔓 UNBLURRED EPISODE #{day_num:03d} LINK ({right_twin} — {right_price} / {right_price_gbp} | Save {dollar_saved} / {gbp_saved} • {pct_saved}):\n"
         f"👉 Instant Region-Matched Deal Page (US/UK/CA/DE/AU): {seo_episode_link}\n"
-        f"🛒 Amazon Prime Direct Link: {amazon_link}\n"
-        f"🎁 Free Trial / Buyer Bonus ({bounty_cta}): {bounty_url}\n"
+        f"🇺🇸 US Amazon Prime Direct Link: {amazon_link}\n"
+        f"🇬🇧 UK Amazon.co.uk Prime Direct Link: {amazon_uk_link}\n"
+        f"🎁 Free Prime Trial (🇺🇸 US: {bounty_url} | 🇬🇧 UK: {bounty_uk_url})\n"
         f"🏭 Factory-Direct / AliExpress Wholesale: {aliexpress_link}\n"
         f"🏬 Walmart Price-Match Link: {walmart_link}\n"
-        f"📦 eBay Certified Refurb / Open-Box: {ebay_link}\n"
-        f"💰 £25 / $30 Rakuten Cashback Bonus (Code SAAALA5): https://www.rakuten.co.uk/r/SAAALA5?eeid=26474\n"
+        f"📦 eBay Open-Box (🇺🇸 US: {ebay_link} | 🇬🇧 UK: {ebay_uk_link})\n"
+        f"💰 £25 UK / $30 US Rakuten Cashback Bonus (Code SAAALA5): https://www.rakuten.co.uk/r/SAAALA5?eeid=26474\n"
         f"⏭️ Next Teardown (Episode #{next_day:03d}): {next_episode_link}\n"
         f"📂 All 600 Unblurred Factory Twins Index: {storefront_link}\n"
         f"▶️ Watch Every Price X-Ray (Full Playlist): {FLAGSHIP_PLAYLIST_URL}\n\n"
-        f"👀 QUICK POLL: Would you still pay {left_price} for the {short_left} logo, or are you pocketing the {dollar_saved} ({pct_saved}) with the {right_price} Factory Twin? Reply 'TWIN' or 'BRAND' below! 👇 (#ad)"
+        f"👀 QUICK POLL: Would you still pay {left_price} ({left_price_gbp}) for the {short_left} logo, or are you pocketing the {dollar_saved} ({gbp_saved} / {pct_saved}) with the {right_price} ({right_price_gbp}) Factory Twin? Reply 'TWIN' or 'BRAND' below! 👇 (#ad)"
     )
 
 
@@ -481,12 +530,18 @@ def upload_video_captions(youtube, video_id: str, item: dict, day_num: int = Non
 
 
 def build_tier1_localizations(title: str, description: str) -> dict:
-    """Populates localized metadata across top Tier-1 English buyer markets (US, UK, CA, AU, Global)."""
+    """Populates localized metadata across top Tier-1 English buyer markets (US, UK, CA, AU, Global).
+    For en-GB (United Kingdom), converts $ prices to £ GBP in the title and surfaces amazon.co.uk (pricexray-21) first.
+    """
     loc_entry = {"title": title, "description": description}
+    gb_title = sanitize_yt_text(usd_to_gbp_text(title))[:100]
+    gb_desc = description.replace(
+        f"www.amazon.com/s?", f"www.amazon.co.uk/s?"
+    ).replace(f"tag={AMAZON_TAG}", f"tag={AMAZON_UK_TAG}")
     return {
         "en": loc_entry,
         "en-US": loc_entry,
-        "en-GB": loc_entry,
+        "en-GB": {"title": gb_title, "description": gb_desc[:4950]},
         "en-CA": loc_entry,
         "en-AU": loc_entry,
     }

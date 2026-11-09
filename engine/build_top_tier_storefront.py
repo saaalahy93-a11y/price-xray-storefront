@@ -946,15 +946,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
      * MULTI-NETWORK AFFILIATE CONFIGURATION CONSTANTS
      */
     const AMAZON_AFFILIATE_TAG = "pricexray-20";
+    const AMAZON_UK_AFFILIATE_TAG = "pricexray-21";
     const ALIEXPRESS_PORTAL_ID = "pricexray";
     const IMPACT_PARTNER_ID = "pricexray";
 
     const STOREFRONT_CONFIG = {
       amazonAssociateTag: AMAZON_AFFILIATE_TAG,
+      amazonUkAssociateTag: AMAZON_UK_AFFILIATE_TAG,
       aliexpressPortalId: ALIEXPRESS_PORTAL_ID,
       impactPartnerId: IMPACT_PARTNER_ID,
       cpaExtensionUrl: "https://www.rakuten.co.uk/r/SAAALA5?eeid=26474",
-      cpaBadgeText: "CLAIM £25 / $30 RAKUTEN CASHBACK BONUS (CODE: SAAALA5)"
+      cpaBadgeText: "CLAIM £25 UK / $30 US RAKUTEN CASHBACK BONUS (CODE: SAAALA5)"
     };
 
     // Apply CPA config to top sticky bar & hero button
@@ -1068,6 +1070,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       AU: "www.amazon.com.au"
     };
 
+    const AMAZON_REGIONAL_TAGS = {
+      US: AMAZON_AFFILIATE_TAG,
+      UK: AMAZON_UK_AFFILIATE_TAG,
+      CA: AMAZON_AFFILIATE_TAG,
+      DE: AMAZON_UK_AFFILIATE_TAG,
+      AU: AMAZON_AFFILIATE_TAG
+    };
+
     const EBAY_REGIONAL_CONFIG = {
       US: { domain: "www.ebay.com", mkrid: "711-53200-19255-0" },
       UK: { domain: "www.ebay.co.uk", mkrid: "710-53481-19255-0" },
@@ -1092,10 +1102,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     let activeRegion = detectInitialRegion();
 
-    // Multi-Network Affiliate URL Builders (Geo-Routed)
-    function buildAmazonUrl(query) {
-      const domain = AMAZON_REGIONAL_DOMAINS[activeRegion] || AMAZON_REGIONAL_DOMAINS.US;
-      return `https://${domain}/s?k=${encodeURIComponent(query)}&tag=${AMAZON_AFFILIATE_TAG}`;
+    function formatGbpPrice(usdNum) {
+      const gbp = Math.max(1, Math.round((usdNum || 0) * 0.79));
+      return `£${gbp.toLocaleString()}`;
+    }
+
+    // Multi-Network Affiliate URL Builders (Geo-Routed across US pricexray-20 & UK pricexray-21)
+    function buildAmazonUrl(query, regionOverride = null) {
+      const reg = regionOverride || activeRegion;
+      const domain = AMAZON_REGIONAL_DOMAINS[reg] || AMAZON_REGIONAL_DOMAINS.US;
+      const tag = AMAZON_REGIONAL_TAGS[reg] || AMAZON_AFFILIATE_TAG;
+      return `https://${domain}/s?k=${encodeURIComponent(query)}&tag=${tag}`;
     }
 
     function buildAliExpressUrl(twinName) {
@@ -1107,43 +1124,46 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       return `https://www.walmart.com/search?q=${encodeURIComponent(query)}`;
     }
 
-    function buildEbayUrl(query, dayNum = 1) {
+    function buildEbayUrl(query, dayNum = 1, regionOverride = null) {
+      const reg = regionOverride || activeRegion;
       const cleaned = (query || "").replace(/\\(.*?\\)/g, "").trim();
-      const cfg = EBAY_REGIONAL_CONFIG[activeRegion] || EBAY_REGIONAL_CONFIG.US;
-      const customId = `pricexray-day-${String(dayNum).padStart(3, "0")}-${activeRegion.toLowerCase()}`;
+      const cfg = EBAY_REGIONAL_CONFIG[reg] || EBAY_REGIONAL_CONFIG.US;
+      const customId = `pricexray-day-${String(dayNum).padStart(3, "0")}-${reg.toLowerCase()}`;
       return `https://${cfg.domain}/sch/i.html?_nkw=${encodeURIComponent(cleaned)}&mkcid=1&mkrid=${cfg.mkrid}&campid=5339000000&customid=${customId}`;
     }
 
     function buildAmazonBountyOffer(d) {
       const domain = AMAZON_REGIONAL_DOMAINS[activeRegion] || AMAZON_REGIONAL_DOMAINS.US;
+      const tag = AMAZON_REGIONAL_TAGS[activeRegion] || AMAZON_AFFILIATE_TAG;
+      const isUk = activeRegion === "UK";
       const text = `${d.category || ""} ${d.title || ""} ${d.twin || ""}`.toLowerCase();
       if (/tool|wrench|ratchet|caliper|multimeter|chair|desk|monitor|stand|laser|soldering|drill|socket|obd|garage|office/.test(text)) {
         return {
-          label: "Free Amazon Business B2B Account",
-          url: `https://business.amazon.com?tag=${AMAZON_AFFILIATE_TAG}`
+          label: isUk ? "Free Amazon Business UK B2B Account" : "Free Amazon Business B2B Account",
+          url: isUk ? `https://business.amazon.co.uk?tag=${AMAZON_UK_AFFILIATE_TAG}` : `https://business.amazon.com?tag=${tag}`
         };
       }
       if (/audio|earbud|headphone|speaker|microphone|dac|amp|sound|anc/.test(text)) {
         return {
           label: "30-Day Free Audible + Audiobook",
-          url: `https://${domain}/hz/audible/mlp?tag=${AMAZON_AFFILIATE_TAG}`
+          url: `https://${domain}/hz/audible/mlp?tag=${tag}`
         };
       }
       if (/serum|skin|hair|toothbrush|flosser|razor|shave|filter|creatine|electrolyte|supplement|patch|beauty|care/.test(text)) {
         return {
-          label: "6-Mo $0 Prime + 5% Cashback",
-          url: `https://${domain}/joinyoungadult?tag=${AMAZON_AFFILIATE_TAG}`
+          label: isUk ? "6-Mo £0 Prime Student UK Trial" : "6-Mo $0 Prime + 5% Cashback",
+          url: isUk ? `https://www.amazon.co.uk/gp/student/signup/info?tag=${AMAZON_UK_AFFILIATE_TAG}` : `https://${domain}/joinyoungadult?tag=${tag}`
         };
       }
-      if ((d.rightPrice || 25) <= 22) {
+      if ((d.rightPrice || 25) <= 22 && !isUk) {
         return {
           label: "Amazon Haul $2.99+ OEM Store",
-          url: `https://${domain}/haul/store?tag=${AMAZON_AFFILIATE_TAG}`
+          url: `https://${domain}/haul/store?tag=${tag}`
         };
       }
       return {
-        label: "30-Day Free Amazon Prime Trial",
-        url: `https://${domain}/prime?tag=${AMAZON_AFFILIATE_TAG}`
+        label: isUk ? "30-Day Free Amazon.co.uk Prime" : "30-Day Free Amazon Prime Trial",
+        url: `https://${domain}/prime?tag=${tag}`
       };
     }
 
@@ -1380,13 +1400,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         const paddedDay = String(d.day).padStart(2, "0");
         const realImageSrc = `images/day_${paddedDay}.jpg`;
         const amazonUrl = buildAmazonUrl(d.query);
+        const amazonUsUrl = buildAmazonUrl(d.query, "US");
+        const amazonUkUrl = buildAmazonUrl(d.query, "UK");
+        const gbpTwinPrice = formatGbpPrice(d.rightPrice);
+        const gbpBrandPrice = formatGbpPrice(d.leftPrice);
+        const gbpSaved = formatGbpPrice(savingsDollar);
         const aliexpressUrl = buildAliExpressUrl(d.aliQuery || d.twin);
         const walmartUrl = buildWalmartUrl(d.query);
         const ebayUrl = buildEbayUrl(d.twin || d.query, d.day);
         const bountyOffer = buildAmazonBountyOffer(d);
         const rakutenUrl = STOREFRONT_CONFIG.cpaExtensionUrl;
         const netAfterCashback = Math.max(0, Math.round((d.rightPrice || 25) - 30));
-        const netCashbackLabel = netAfterCashback === 0 ? "$0 Net w/ £25 Rakuten" : `$${netAfterCashback} Net w/ £25 Rakuten`;
+        const netCashbackLabel = netAfterCashback === 0 ? "£0 / $0 Net w/ £25 Rakuten" : `${formatGbpPrice(netAfterCashback)} / $${netAfterCashback} Net w/ £25 Rakuten`;
         const hasTeardownNotes = Boolean(d.hook || d.body || d.reveal);
 
         return `
@@ -1417,7 +1442,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                   </span>` : ""}
                 </div>
                 <span class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full bg-twin/15 text-twin font-mono font-extrabold text-xs tabular-nums">
-                  SAVE ${savingsPct}% ($${savingsDollar})
+                  SAVE ${savingsPct}% ($${savingsDollar} / ${gbpSaved})
                 </span>
               </div>
 
@@ -1473,7 +1498,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                       </svg>
                       <span>Retail Brand</span>
                     </span>
-                    <span class="text-xs font-mono font-extrabold text-markup line-through tabular-nums">${d.brandPrice}</span>
+                    <span class="text-xs font-mono font-extrabold text-markup line-through tabular-nums">${d.brandPrice} / ${gbpBrandPrice}</span>
                   </div>
                   <p class="text-xs font-semibold text-slate-300 mt-1 leading-snug">
                     <a href="${buildAmazonUrl(d.brand)}" target="_blank" rel="noopener sponsored" class="hover:text-markup underline decoration-dotted" title="Fact-Check Retail Brand Price on Amazon">
@@ -1491,7 +1516,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                       </svg>
                       <span>Factory Twin</span>
                     </span>
-                    <span class="text-xs font-mono font-extrabold text-twin tabular-nums">${d.twinPrice}</span>
+                    <span class="text-xs font-mono font-extrabold text-twin tabular-nums">${d.twinPrice} / ${gbpTwinPrice}</span>
                   </div>
                   <p class="text-xs font-bold text-white mt-1 leading-snug">
                     ${d.twin}
@@ -1555,27 +1580,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
             <!-- Multi-Network Action Footer -->
             <div class="pt-2 border-t border-slate-800/90">
-              <!-- Primary Action Button (Amazon Prime Affiliate) + Copy -->
-              <div class="flex items-center gap-2">
+              <!-- Dual Primary Action Buttons (US pricexray-20 & UK pricexray-21 Amazon Prime) + Copy -->
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-1.5">
                 <a
-                  href="${amazonUrl}"
+                  href="${amazonUsUrl}"
                   target="_blank"
                   rel="noopener sponsored"
-                  class="cta-emerald flex-1 inline-flex items-center justify-center gap-2 font-black text-xs sm:text-sm cursor-pointer"
+                  class="cta-emerald sm:col-span-5 inline-flex items-center justify-center gap-1.5 font-black text-xs cursor-pointer"
                 >
-                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" aria-hidden="true">
-                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path stroke-linecap="round" stroke-linejoin="round" d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
-                  </svg>
-                  <span>Buy Twin on Amazon Prime (${d.twinPrice})</span>
-                  <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
+                  <span>🇺🇸 Amazon US (${d.twinPrice})</span>
+                </a>
+                <a
+                  href="${amazonUkUrl}"
+                  target="_blank"
+                  rel="noopener sponsored"
+                  class="cta-emerald sm:col-span-5 inline-flex items-center justify-center gap-1.5 font-black text-xs cursor-pointer"
+                >
+                  <span>🇬🇧 Amazon UK (${gbpTwinPrice})</span>
                 </a>
                 <button
                   type="button"
                   onclick="copyDealLink(${d.day}, '${d.query.replace(/'/g, "\\\\'")}')"
-                  class="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-surface hover:bg-elevated text-slate-200 px-3.5 py-3 text-xs font-mono font-bold transition cursor-pointer"
-                  title="Copy Direct Amazon Factory Twin Link"
+                  class="sm:col-span-2 inline-flex items-center justify-center gap-1 rounded-xl bg-surface hover:bg-elevated text-slate-200 px-2.5 py-2.5 text-xs font-mono font-bold transition cursor-pointer"
+                  title="Copy Direct Region-Matched Amazon Factory Twin Link"
                 >
                   <svg class="w-3.5 h-3.5 text-xray" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
