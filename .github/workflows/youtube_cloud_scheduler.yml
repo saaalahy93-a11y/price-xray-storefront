@@ -47,9 +47,9 @@ jobs:
         run: |
           python3 engine/fetch_cloud_release_videos.py
 
-      - name: Upload & Schedule Next Batch of Price X-Ray Shorts + Sync Launch Cluster
+      - name: Upload Next Single Price X-Ray Short (Natural 6h Cadence — Zero Burst Spam)
         run: |
-          python3 engine/auto_upload_youtube.py --schedule-4x-daily --max-uploads 6
+          python3 engine/auto_upload_youtube.py --schedule-4x-daily --max-uploads 1
 
       - name: Rebuild Storefront & Sync Live YouTube Short Links
         run: |
@@ -65,10 +65,10 @@ jobs:
         run: |
           git config user.name "Price X-Ray Cloud Bot (ANKH ENTERPRISE LTD)"
           git config user.email "ahmed.alsalahy@ankhenterprise.co.uk"
-          git add uploaded_videos.json calendar_30days/all_100_episodes.json index.html episodes_100.json
+          git add -A
           if ! git diff --cached --quiet; then
             git commit -m "chore(cloud-scheduler): sync uploaded YouTube Shorts & storefront state"
-            git pull --rebase origin main
+            git pull --rebase --autostash -X theirs origin main
             git push origin main
           else
             echo "No state changes to commit on this run."

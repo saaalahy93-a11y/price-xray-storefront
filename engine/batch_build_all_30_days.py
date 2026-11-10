@@ -257,7 +257,7 @@ def synthesize_vo_with_fallback(text, mp3_path, day_num=1, prefer_local=False):
 
     if not prefer_local:
         try:
-            words = asyncio.run(asyncio.wait_for(synthesize_vo(text, mp3_path, day_num=day_num), timeout=4.5))
+            words = asyncio.run(asyncio.wait_for(synthesize_vo(text, mp3_path, day_num=day_num), timeout=12.0))
             if os.path.exists(mp3_path) and os.path.getsize(mp3_path) > 512:
                 if not words:
                     dur = get_duration(mp3_path)
@@ -441,29 +441,87 @@ def render_3d_studio_fallback_pair(day_num, item=None):
     return canvas.convert("RGB")
 
 
+def extract_clean_studio_subject(raw_half):
+    """
+    Strips any legacy baked outer frame/header/podium from raw_half (410x260),
+    auto-trims excess studio whitespace around the real product, and returns a clean
+    high-contrast studio product image ready for giant 446x430 hero showcase cards.
+    """
+    rgb = raw_half.convert("RGB")
+    rw, rh = rgb.size
+
+    # Detect legacy 410x260 framed card: dark side margin at (18, 130) + bright inner studio window at (68, 52)
+    if rw >= 390 and rh >= 240:
+        c_margin = max(rgb.getpixel((18, 130)))
+        c_in = min(rgb.getpixel((68, 52)))
+        if c_margin < 95 and c_in > 205:
+            # Crop pure inner white studio box (completely removing outer mini-frame, pill & podium!)
+            rgb = rgb.crop((62, 42, min(rw - 56, 350), min(rh - 58, 200)))
+
+    arr = np.asarray(rgb, dtype=np.int16)
+    # Estimate studio background color from the four inner corners
+    corners = np.array([
+        arr[2, 2],
+        arr[2, -3],
+        arr[-3, 2],
+        arr[-3, -3],
+    ], dtype=np.int16)
+    bg = np.median(corners, axis=0)
+
+    # Find pixels that differ meaningfully from studio background
+    diff = np.max(np.abs(arr - bg), axis=2)
+    ys, xs = np.where(diff > 16)
+    if len(xs) > 80 and len(ys) > 80:
+        x0, x1 = int(xs.min()), int(xs.max())
+        y0, y1 = int(ys.min()), int(ys.max())
+        pad_x = max(8, int((x1 - x0) * 0.08))
+        pad_y = max(8, int((y1 - y0) * 0.08))
+        x0 = max(0, x0 - pad_x)
+        y0 = max(0, y0 - pad_y)
+        x1 = min(rgb.width, x1 + pad_x)
+        y1 = min(rgb.height, y1 + pad_y)
+        if (x1 - x0) >= 40 and (y1 - y0) >= 40:
+            rgb = rgb.crop((x0, y0, x1, y1))
+
+    return rgb, tuple(int(v) for v in np.clip(bg, 238, 255))
+
+
 def style_product_photo_card(raw_crop, border_color, zoom_factor=1.0):
-    target_w, target_h = 410, 260
-    base = raw_crop.convert("RGB")
-    if zoom_factor > 1.001:
-        zw = int(round(target_w * zoom_factor))
-        zh = int(round(target_h * zoom_factor))
-        big = base.resize((zw, zh), Image.Resampling.LANCZOS)
-        ox = (zw - target_w) // 2
-        oy = (zh - target_h) // 2
-        img = big.crop((ox, oy, ox + target_w, oy + target_h))
-    else:
-        img = base.resize((target_w, target_h), Image.Resampling.LANCZOS)
+    """
+    V3 Giant Hero Product Showcase Card (446 x 430 pure studio white card):
+    Scales the clean studio product subject to fill ~86% of the giant card with smooth Ken Burns zoom.
+    """
+    target_w, target_h = 446, 430
+    subject, bg_col = extract_clean_studio_subject(raw_crop)
+    # If synthetic dark card, keep clean light studio surface if background was light, else crisp white
+    studio_bg = (250, 251, 253)
+
+    canvas = Image.new("RGB", (target_w, target_h), studio_bg)
+    sd = ImageDraw.Draw(canvas)
+    # Subtle studio contact shadow ellipse at base
+    sd.ellipse([95, target_h - 54, target_w - 95, target_h - 22], fill=(226, 232, 240))
+
+    max_pw = int(target_w * 0.86 * zoom_factor)
+    max_ph = int(target_h * 0.84 * zoom_factor)
+    sw, sh = subject.size
+    scale = min(max_pw / max(1, sw), max_ph / max(1, sh))
+    nw = max(1, int(round(sw * scale)))
+    nh = max(1, int(round(sh * scale)))
+    resized = subject.resize((nw, nh), Image.Resampling.LANCZOS)
+
+    px = (target_w - nw) // 2
+    py = (target_h - nh) // 2 - 6
+    canvas.paste(resized, (px, py))
 
     mask = Image.new("L", (target_w, target_h), 0)
     md = ImageDraw.Draw(mask)
-    md.rounded_rectangle([0, 0, target_w - 1, target_h - 1], radius=20, fill=255)
+    md.rounded_rectangle([0, 0, target_w - 1, target_h - 1], radius=24, fill=255)
 
     framed = Image.new("RGB", (target_w, target_h), (14, 20, 30))
-    framed.paste(img, (0, 0), mask)
+    framed.paste(canvas, (0, 0), mask)
 
     fd = ImageDraw.Draw(framed)
-    fd.rounded_rectangle([2, 2, target_w - 3, target_h - 3], radius=19, outline=(255, 255, 255), width=1)
-    fd.rounded_rectangle([0, 0, target_w - 1, target_h - 1], radius=20, outline=border_color, width=4)
+    fd.rounded_rectangle([0, 0, target_w - 1, target_h - 1], radius=24, outline=border_color, width=5)
     return framed
 
 
@@ -606,198 +664,197 @@ def build_macro_loupe_sprite(left_raw, right_xray_photo, pulse_alt=False):
 
 def make_states(item):
     """
-    Pre-renders all visual state canvases, Ken Burns zoom frames, Mystery Badge states,
-    X-Ray Callout Pills, Macro Loupe sprites, and High-Conversion CTA Docks so that
-    ZERO slow emoji/smart-text operations occur inside the per-frame loop!
+    V3 Studio Hero Photo Edition:
+    Pre-renders giant 446x430 real studio product cards, 5 Ken Burns zoom levels,
+    sleek non-destructive laser scan callouts, YouTube Shorts safe-zone captions,
+    and conversion docks (100% clear of YouTube's right icon rail & bottom title bar).
     """
     W, H = 1080, 1920
-    f_tag = get_font(31)
-    f_sub_price = get_font(24)
-    f_card_title = get_font(32)
-    f_spec_hdr = get_font(30)
-    f_spec_body = get_font(28)
+    f_tag = get_font(29)
+    f_sub_price = get_font(23)
+    f_card_title = get_font(30)
+    f_spec_hdr = get_font(27)
+    f_spec_body = get_font(25)
 
     day_num = int(item["day"])
     prices = derive_dual_prices(item)
     left_photo, right_photo, left_raw, right_raw = load_product_pair(day_num, item=item)
-    left_xray_photo = build_xray_photo_overlay(left_photo, is_twin=False)
-    right_xray_photo = build_xray_photo_overlay(right_photo, is_twin=True)
 
-    # Pre-compute 5 Ken Burns zoom levels (1.00x -> 1.14x) for both Left and Right photos
-    zoom_levels = [1.00, 1.035, 1.07, 1.105, 1.14]
+    # Pre-compute 5 Ken Burns zoom levels (1.00x -> 1.15x) for Giant 446x430 Studio Product Cards
+    zoom_levels = [1.00, 1.038, 1.075, 1.112, 1.15]
     left_zooms = [style_product_photo_card(left_raw, (239, 68, 68), z) for z in zoom_levels]
     right_zooms = [style_product_photo_card(right_raw, (16, 185, 129), z) for z in zoom_levels]
     right_blurred_zooms = []
     for rz in right_zooms:
-        b = rz.filter(ImageFilter.GaussianBlur(radius=20))
+        # Radius 11 keeps the real product color & silhouette unmistakably visible inside the white studio box
+        b = rz.filter(ImageFilter.GaussianBlur(radius=11))
         bd = ImageDraw.Draw(b)
-        bd.rounded_rectangle([0, 0, 409, 259], radius=20, outline=(16, 185, 129), width=4)
+        bd.rounded_rectangle([0, 0, 445, 429], radius=24, outline=(16, 185, 129), width=5)
         right_blurred_zooms.append(b)
 
     def build_common_shell():
         img = Image.new("RGB", (W, H), (10, 13, 20))
         d = ImageDraw.Draw(img)
 
-        # Header Block
-        d.rounded_rectangle([40, 55, 1040, 265], radius=28, fill=(18, 24, 38), outline=(55, 65, 81), width=4)
-        draw_smart_text(img, d, (75, 95), f"🔬 PRICE X-RAY • EPISODE #{day_num:03d} • US ($) & UK (£)", font=get_font(30), fill=(34, 211, 238))
+        # Header Block (Safe below YouTube Shorts top bar: y = 90..250)
+        d.rounded_rectangle([32, 90, 1048, 250], radius=26, fill=(18, 24, 38), outline=(55, 65, 81), width=4)
+        draw_smart_text(img, d, (66, 118), f"🔬 PRICE X-RAY • EPISODE #{day_num:03d} • US ($) & UK (£)", font=get_font(28), fill=(34, 211, 238))
         banner_txt = item["top_banner"].upper()[:44]
-        f_ban_dyn = get_font(35 if len(banner_txt) > 34 else 41)
-        d.text((540, 192), banner_txt, font=f_ban_dyn, fill=(255, 255, 255), anchor="mm")
+        f_ban_dyn = get_font(34 if len(banner_txt) > 34 else 40)
+        d.text((540, 198), banner_txt, font=f_ban_dyn, fill=(255, 255, 255), anchor="mm")
 
-        # Left Red Card (Overpriced Brand + Dual US/UK Price + Brand Markup Pill)
-        d.rounded_rectangle([40, 390, 520, 1110], radius=30, fill=(28, 14, 20), outline=(239, 68, 68), width=6)
-        d.rounded_rectangle([70, 416, 490, 472], radius=14, fill=(239, 68, 68))
-        draw_smart_text(img, d, (280, 444), "❌ OVERPRICED RETAIL", font=f_tag, fill=(255, 255, 255), anchor="mm")
+        # Left Red Hero Card (492 x 796 -> [32, 352, 524, 1148])
+        d.rounded_rectangle([32, 352, 524, 1148], radius=30, fill=(28, 14, 20), outline=(239, 68, 68), width=6)
+        d.rounded_rectangle([54, 372, 502, 424], radius=14, fill=(239, 68, 68))
+        draw_smart_text(img, d, (278, 398), "❌ OVERPRICED RETAIL", font=f_tag, fill=(255, 255, 255), anchor="mm")
 
-        d.text((280, 535), f"{prices['us_left']} / {prices['uk_left']}", font=get_font(56), fill=(248, 113, 113), anchor="mm")
-        d.rounded_rectangle([80, 582, 480, 622], radius=10, fill=(65, 18, 28), outline=(248, 113, 113), width=2)
-        draw_smart_text(img, d, (280, 602), f"⚡ +{prices['sav_pct']} RETAIL LOGO TAX", font=f_sub_price, fill=(254, 202, 202), anchor="mm")
+        d.text((278, 468), f"{prices['us_left']} / {prices['uk_left']}", font=get_font(52), fill=(248, 113, 113), anchor="mm")
+        d.rounded_rectangle([62, 506, 494, 544], radius=10, fill=(65, 18, 28), outline=(248, 113, 113), width=2)
+        draw_smart_text(img, d, (278, 525), f"⚡ +{prices['sav_pct']} RETAIL LOGO TAX", font=f_sub_price, fill=(254, 202, 202), anchor="mm")
 
-        img.paste(left_photo, (75, 640))
+        img.paste(left_zooms[0], (55, 560))
 
-        for i, line in enumerate(wrap_text(item["left_brand"], 20)[:3]):
-            d.text((280, 952 + i * 40), line, font=f_card_title, fill=(252, 165, 165), anchor="mm")
+        for i, line in enumerate(wrap_text(item["left_brand"], 22)[:3]):
+            d.text((278, 1026 + i * 38), line, font=f_card_title, fill=(254, 202, 202), anchor="mm")
 
-        # Smoking Gun Proof Box
-        d.rounded_rectangle([40, 1140, 1040, 1390], radius=26, fill=(18, 24, 38), outline=(34, 211, 238), width=4)
-        draw_smart_text(img, d, (75, 1170), "🧬 SMOKING GUN FACTORY SPEC (99.8% BOM MATCH):", font=f_spec_hdr, fill=(34, 211, 238))
-        for i, line in enumerate(wrap_text(item["smoking_gun_spec"], 46)[:3]):
-            d.text((75, 1232 + i * 40), line, font=f_spec_body, fill=(229, 231, 235))
+        # Smoking Gun Proof Box (Safe left of YouTube right-side Like/Comment rail: x = 32..932)
+        d.rounded_rectangle([32, 1164, 932, 1334], radius=24, fill=(18, 24, 38), outline=(34, 211, 238), width=4)
+        draw_smart_text(img, d, (58, 1184), "🧬 99.8% IDENTICAL FACTORY SPEC:", font=f_spec_hdr, fill=(34, 211, 238))
+        for i, line in enumerate(wrap_text(item["smoking_gun_spec"], 44)[:3]):
+            d.text((58, 1226 + i * 33), line, font=f_spec_body, fill=(229, 231, 235))
 
         return img
 
     def build_right_card(blur_radius=0, emerald_glow=False):
-        rc = Image.new("RGB", (480, 720), (12, 28, 24))
+        rc = Image.new("RGB", (492, 796), (12, 28, 24))
         rd = ImageDraw.Draw(rc)
-        border_w = 10 if emerald_glow else 6
+        border_w = 9 if emerald_glow else 6
         border_col = (52, 245, 175) if emerald_glow else (16, 185, 129)
-        rd.rounded_rectangle([0, 0, 479, 719], radius=30, fill=(12, 28, 24), outline=border_col, width=border_w)
+        rd.rounded_rectangle([0, 0, 491, 795], radius=30, fill=(12, 28, 24), outline=border_col, width=border_w)
         if emerald_glow:
-            rd.rounded_rectangle([6, 6, 473, 713], radius=26, outline=(167, 243, 208), width=3)
+            rd.rounded_rectangle([6, 6, 485, 789], radius=26, outline=(167, 243, 208), width=3)
 
-        rd.rounded_rectangle([30, 26, 450, 82], radius=14, fill=(16, 185, 129))
-        draw_smart_text(rc, rd, (240, 54), "✅ SAME-FACTORY TWIN", font=f_tag, fill=(10, 13, 20), anchor="mm")
+        rd.rounded_rectangle([22, 20, 470, 72], radius=14, fill=(16, 185, 129))
+        draw_smart_text(rc, rd, (246, 46), "✅ SAME-FACTORY TWIN", font=f_tag, fill=(10, 13, 20), anchor="mm")
 
-        rd.text((240, 145), f"{prices['us_right']} / {prices['uk_right']}", font=get_font(56), fill=(52, 211, 153), anchor="mm")
-        rd.rounded_rectangle([35, 192, 445, 232], radius=10, fill=(10, 48, 36), outline=(52, 211, 153), width=2)
-        draw_smart_text(rc, rd, (240, 212), f"🔥 SAVE {prices['sav_usd']} ({prices['sav_gbp']}) • {prices['sav_pct']} OFF", font=f_sub_price, fill=(167, 243, 208), anchor="mm")
+        rd.text((246, 116), f"{prices['us_right']} / {prices['uk_right']}", font=get_font(52), fill=(52, 211, 153), anchor="mm")
+        rd.rounded_rectangle([30, 154, 462, 192], radius=10, fill=(10, 48, 36), outline=(52, 211, 153), width=2)
+        draw_smart_text(rc, rd, (246, 173), f"🔥 SAVE {prices['sav_usd']} ({prices['sav_gbp']}) • {prices['sav_pct']} OFF", font=f_sub_price, fill=(167, 243, 208), anchor="mm")
 
-        rc.paste(right_photo, (35, 250))
-        for i, line in enumerate(wrap_text(item["right_twin"], 20)[:3]):
-            rd.text((240, 562 + i * 40), line, font=f_card_title, fill=(167, 243, 208), anchor="mm")
+        rc.paste(right_zooms[0], (23, 208))
+        for i, line in enumerate(wrap_text(item["right_twin"], 22)[:3]):
+            rd.text((246, 674 + i * 38), line, font=f_card_title, fill=(167, 243, 208), anchor="mm")
 
         if blur_radius > 0:
-            p_blur = right_photo.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+            p_blur = right_zooms[0].filter(ImageFilter.GaussianBlur(radius=blur_radius))
             pbd = ImageDraw.Draw(p_blur)
-            pbd.rounded_rectangle([0, 0, 409, 259], radius=20, outline=(16, 185, 129), width=4)
-            rc.paste(p_blur, (35, 250))
+            pbd.rounded_rectangle([0, 0, 445, 429], radius=24, outline=(16, 185, 129), width=5)
+            rc.paste(p_blur, (23, 208))
 
-            txt_crop = rc.crop((20, 520, 460, 700)).filter(ImageFilter.GaussianBlur(radius=max(6, blur_radius)))
-            rc.paste(txt_crop, (20, 520))
+            txt_crop = rc.crop((18, 646, 474, 782)).filter(ImageFilter.GaussianBlur(radius=max(5, blur_radius)))
+            rc.paste(txt_crop, (18, 646))
 
         return rc
 
     shell_img = build_common_shell()
 
-    locked_right_card = build_right_card(blur_radius=20, emerald_glow=False)
+    locked_right_card = build_right_card(blur_radius=11, emerald_glow=False)
     revealed_right_card = build_right_card(blur_radius=0, emerald_glow=True)
 
     base_locked_img = shell_img.copy()
-    base_locked_img.paste(locked_right_card, (560, 390))
+    base_locked_img.paste(locked_right_card, (556, 352))
 
     revealed_img = shell_img.copy()
-    revealed_img.paste(revealed_right_card, (560, 390))
+    revealed_img.paste(revealed_right_card, (556, 352))
 
-    # Pre-render the Bottom Conversion CTA Docks (Pre-Reveal vs Post-Reveal)
-    cta_pre = Image.new("RGB", (980, 165), (18, 25, 38))
+    # Pre-render Bottom Conversion CTA Docks (Safe above YouTube bottom overlay & left of right icon rail: 900x130 at (32, 1552))
+    cta_pre = Image.new("RGB", (900, 130), (18, 25, 38))
     cd_pre = ImageDraw.Draw(cta_pre)
-    cd_pre.rounded_rectangle([0, 0, 979, 164], radius=24, fill=(18, 25, 38), outline=(251, 191, 36), width=4)
-    draw_smart_text(cta_pre, cd_pre, (490, 52), f"⏳ HOLD FOR UNBLUR • SAVE {prices['sav_usd']} / {prices['sav_gbp']} ({prices['sav_pct']} OFF)", font=get_font(31), fill=(251, 191, 36), anchor="mm")
-    draw_smart_text(cta_pre, cd_pre, (490, 116), f"🛒 UK (£) & US ($) LINKS: @PriceXRayOfficial BIO -> #{day_num:03d}", font=get_font(27), fill=(229, 231, 235), anchor="mm")
+    cd_pre.rounded_rectangle([0, 0, 899, 129], radius=22, fill=(18, 25, 38), outline=(251, 191, 36), width=4)
+    draw_smart_text(cta_pre, cd_pre, (450, 42), f"⏳ UNBLURRING TWIN • SAVE {prices['sav_usd']} / {prices['sav_gbp']} ({prices['sav_pct']} OFF)", font=get_font(28), fill=(251, 191, 36), anchor="mm")
+    draw_smart_text(cta_pre, cd_pre, (450, 92), f"🛒 UK (£) & US ($) LINKS: @PriceXRayOfficial BIO -> #{day_num:03d}", font=get_font(25), fill=(229, 231, 235), anchor="mm")
 
-    cta_post_a = Image.new("RGB", (980, 165), (10, 42, 32))
+    cta_post_a = Image.new("RGB", (900, 130), (10, 42, 32))
     cd_pa = ImageDraw.Draw(cta_post_a)
-    cd_pa.rounded_rectangle([0, 0, 979, 164], radius=24, fill=(16, 185, 129), outline=(255, 255, 255), width=5)
-    draw_smart_text(cta_post_a, cd_pa, (490, 52), "👆 TAP @PriceXRayOfficial BIO OR PINNED COMMENT!", font=get_font(32), fill=(10, 13, 20), anchor="mm")
-    draw_smart_text(cta_post_a, cd_pa, (490, 116), f"🛒 EPISODE #{day_num:03d} ({prices['us_right']}/{prices['uk_right']}) + £25/$30 FREE CASHBACK", font=get_font(27), fill=(255, 255, 255), anchor="mm")
+    cd_pa.rounded_rectangle([0, 0, 899, 129], radius=22, fill=(16, 185, 129), outline=(255, 255, 255), width=5)
+    draw_smart_text(cta_post_a, cd_pa, (450, 42), "👆 TAP @PriceXRayOfficial BIO OR PINNED COMMENT!", font=get_font(28), fill=(10, 13, 20), anchor="mm")
+    draw_smart_text(cta_post_a, cd_pa, (450, 92), f"🛒 EPISODE #{day_num:03d} ({prices['us_right']}/{prices['uk_right']}) + £25/$30 FREE CASHBACK", font=get_font(24), fill=(255, 255, 255), anchor="mm")
 
-    cta_post_b = Image.new("RGB", (980, 165), (12, 52, 38))
+    cta_post_b = Image.new("RGB", (900, 130), (12, 52, 38))
     cd_pb = ImageDraw.Draw(cta_post_b)
-    cd_pb.rounded_rectangle([0, 0, 979, 164], radius=24, fill=(251, 191, 36), outline=(16, 185, 129), width=6)
-    draw_smart_text(cta_post_b, cd_pb, (490, 52), "🔓 LINK IN PINNED COMMENT & @PriceXRayOfficial BIO!", font=get_font(31), fill=(10, 13, 20), anchor="mm")
-    draw_smart_text(cta_post_b, cd_pb, (490, 116), f"✅ AMAZON UK (£) & US ($) DIRECT -> EPISODE #{day_num:03d}", font=get_font(28), fill=(10, 13, 20), anchor="mm")
+    cd_pb.rounded_rectangle([0, 0, 899, 129], radius=22, fill=(251, 191, 36), outline=(16, 185, 129), width=5)
+    draw_smart_text(cta_post_b, cd_pb, (450, 42), "🔓 LINK IN PINNED COMMENT & @PriceXRayOfficial BIO!", font=get_font(28), fill=(10, 13, 20), anchor="mm")
+    draw_smart_text(cta_post_b, cd_pb, (450, 92), f"✅ AMAZON UK (£) & US ($) DIRECT -> EPISODE #{day_num:03d}", font=get_font(25), fill=(10, 13, 20), anchor="mm")
 
-    # Pre-render Mystery Badge Sprites (2 pulse states) so zero draw_smart_text runs in frame loop
+    # Compact Mystery Badge Sprites (410x86 at bottom of frosted twin photo so silhouette stays visible!)
     mystery_badges = []
     for p_idx, border_col in enumerate([(251, 191, 36), (52, 245, 175)]):
-        mb = Image.new("RGB", (424, 144), (12, 28, 24))
+        mb = Image.new("RGB", (410, 86), (12, 28, 24))
         mbd = ImageDraw.Draw(mb)
-        mbd.rounded_rectangle([0, 0, 423, 143], radius=20, fill=(10, 13, 20), outline=border_col, width=4)
-        draw_smart_text(mb, mbd, (212, 48), "🔒 MYSTERY FACTORY TWIN", font=get_font(26), fill=(251, 191, 36), anchor="mm")
-        draw_smart_text(mb, mbd, (212, 98), "WAIT FOR X-RAY UNBLUR 👇", font=get_font(23), fill=(255, 255, 255), anchor="mm")
+        mbd.rounded_rectangle([0, 0, 409, 85], radius=16, fill=(10, 14, 22), outline=border_col, width=4)
+        draw_smart_text(mb, mbd, (205, 28), "🔒 MYSTERY FACTORY TWIN", font=get_font(24), fill=(251, 191, 36), anchor="mm")
+        draw_smart_text(mb, mbd, (205, 62), "WATCH LIVE UNBLUR 👇", font=get_font(21), fill=(255, 255, 255), anchor="mm")
         mystery_badges.append(mb)
 
-    # Pre-bake 5 full-screen Locked Zoom frames (with cta_pre already pasted!)
+    # Pre-bake 5 full-screen Locked Zoom frames
     locked_zoom_frames = []
     for z_i in range(len(zoom_levels)):
         zf = base_locked_img.copy()
-        zf.paste(left_zooms[z_i], (75, 640))
-        zf.paste(right_blurred_zooms[z_i], (595, 640))
-        zf.paste(cta_pre, (50, 1690))
+        zf.paste(left_zooms[z_i], (55, 560))
+        zf.paste(right_blurred_zooms[z_i], (579, 560))
+        zf.paste(cta_pre, (32, 1552))
         locked_zoom_frames.append(zf)
 
     # Pre-bake 5 full-screen Revealed Zoom frames
     revealed_zoom_frames = []
     for z_i in range(len(zoom_levels)):
         rf = revealed_img.copy()
-        rf.paste(left_zooms[z_i], (75, 640))
-        rf.paste(right_zooms[z_i], (595, 640))
+        rf.paste(left_zooms[z_i], (55, 560))
+        rf.paste(right_zooms[z_i], (579, 560))
         revealed_zoom_frames.append(rf)
 
-    # Pre-render X-Ray Spec Callout Pills (3 pills)
+    # Pre-render Non-Destructive Laser Callout Pills (3 pills)
     spec_parts = [s.strip() for s in item.get("smoking_gun_spec", "").split("+") if s.strip()]
-    callout_texts = ["🔬 SCANNING INTERNAL OEM COMPONENTS..."]
+    callout_texts = ["🔬 LASER SCANNING FACTORY OEM SPEC..."]
     for sp in spec_parts[:2]:
-        callout_texts.append(f"🔬 X-RAY MATCH: {sp.upper()[:34]}")
+        callout_texts.append(f"✅ MATCH: {sp.upper()[:36]}")
     callout_pills = []
     for c_txt in callout_texts:
-        cp = Image.new("RGB", (710, 46), (8, 15, 26))
+        cp = Image.new("RGB", (680, 44), (8, 15, 26))
         cpd = ImageDraw.Draw(cp)
-        cpd.rounded_rectangle([0, 0, 709, 45], radius=14, fill=(8, 15, 26), outline=(34, 211, 238), width=3)
-        draw_smart_text(cp, cpd, (355, 23), c_txt, font=get_font(23), fill=(34, 211, 238), anchor="mm")
+        cpd.rounded_rectangle([0, 0, 679, 43], radius=14, fill=(8, 15, 26), outline=(34, 211, 238), width=3)
+        draw_smart_text(cp, cpd, (340, 22), c_txt, font=get_font(22), fill=(34, 211, 238), anchor="mm")
         callout_pills.append(cp)
 
-    # Pre-render Top Progress Bar Unlocked Sprite for Phase 3
-    top_unlocked = Image.new("RGB", (1000, 80), (18, 24, 38))
+    # Pre-render Top Progress Bar Unlocked Sprite for Phase 3 ([32, 266, 1048, 336] -> 1016 x 70)
+    top_unlocked = Image.new("RGB", (1016, 70), (18, 24, 38))
     tud = ImageDraw.Draw(top_unlocked)
-    tud.rounded_rectangle([0, 0, 999, 79], radius=18, fill=(18, 24, 38), outline=(55, 65, 81), width=3)
-    tud.rounded_rectangle([10, 10, 989, 69], radius=12, fill=(16, 185, 129))
-    draw_smart_text(top_unlocked, tud, (500, 40), f"🔓 UNBLURRED! EPISODE #{day_num:03d} IN BIO & COMMENTS 👇", font=get_font(31), fill=(10, 13, 20), anchor="mm")
+    tud.rounded_rectangle([0, 0, 1015, 69], radius=16, fill=(18, 24, 38), outline=(55, 65, 81), width=3)
+    tud.rounded_rectangle([8, 8, 1007, 61], radius=12, fill=(16, 185, 129))
+    draw_smart_text(top_unlocked, tud, (508, 35), f"🔓 TWIN UNBLURRED! EPISODE #{day_num:03d} IN BIO & COMMENTS 👇", font=get_font(29), fill=(10, 13, 20), anchor="mm")
 
-    # Thumbnail image includes high-CTR VS badge + mystery badge + pre-reveal CTA baked in
-    thumb_img = locked_zoom_frames[1].copy()
-    thumb_img.paste(mystery_badges[0], (588, 926))
+    # High-CTR Thumbnail with both giant product cards + VS badge + crisp status header
+    thumb_img = locked_zoom_frames[2].copy()
+    thumb_img.paste(mystery_badges[0], (597, 896))
     td = ImageDraw.Draw(thumb_img)
-    td.ellipse([490, 715, 590, 815], fill=(239, 68, 68), outline=(255, 255, 255), width=5)
-    td.text((540, 765), "VS", font=get_font(42), fill=(255, 255, 255), anchor="mm")
+    td.rounded_rectangle([32, 266, 1048, 336], radius=16, fill=(251, 191, 36), outline=(255, 255, 255), width=3)
+    td.text((540, 301), f"SAVE {prices['sav_usd']} ({prices['sav_gbp']}) • SAME FACTORY SPEC!", font=get_font(31), fill=(10, 13, 20), anchor="mm")
+    td.ellipse([490, 725, 590, 825], fill=(239, 68, 68), outline=(255, 255, 255), width=5)
+    td.text((540, 775), "VS", font=get_font(42), fill=(255, 255, 255), anchor="mm")
 
-    # Pre-compute smooth unblur right cards for the 0.5s reveal window
-    unblur_radii = [20, 15, 10, 5, 0]
+    # Pre-compute smooth unblur right cards for the 0.45s reveal window
+    unblur_radii = [11, 8, 5, 2, 0]
     unblur_frames = {}
     for r in unblur_radii:
         if r == 0:
-            unblur_frames[r] = revealed_zoom_frames[0]
-        elif r == 20:
-            unblur_frames[r] = locked_zoom_frames[0]
+            unblur_frames[r] = revealed_zoom_frames[1]
+        elif r == 11:
+            unblur_frames[r] = locked_zoom_frames[1]
         else:
             f_img = shell_img.copy()
-            f_img.paste(build_right_card(blur_radius=r, emerald_glow=(r <= 8)), (560, 390))
-            f_img.paste(cta_post_a, (50, 1690))
+            f_img.paste(build_right_card(blur_radius=r, emerald_glow=(r <= 5)), (556, 352))
+            f_img.paste(cta_post_a, (32, 1552))
             unblur_frames[r] = f_img
-
-    loupe_a = build_macro_loupe_sprite(left_raw, right_xray_photo, pulse_alt=False)
-    loupe_b = build_macro_loupe_sprite(left_raw, right_xray_photo, pulse_alt=True)
 
     return {
         "thumb_img": thumb_img,
@@ -805,13 +862,9 @@ def make_states(item):
         "revealed_zoom_frames": revealed_zoom_frames,
         "unblur_frames": unblur_frames,
         "unblur_radii": unblur_radii,
-        "left_xray_photo": left_xray_photo,
-        "right_xray_photo": right_xray_photo,
         "mystery_badges": mystery_badges,
         "callout_pills": callout_pills,
         "top_unlocked": top_unlocked,
-        "loupe_a": loupe_a,
-        "loupe_b": loupe_b,
         "cta_post_a": cta_post_a,
         "cta_post_b": cta_post_b,
         "prices": prices,
@@ -820,43 +873,31 @@ def make_states(item):
 
 def apply_phase2_xray_laser_scan(frame, d, t_cur, states):
     """
-    Phase 2 (3.5s to reveal_s): Dynamic X-Ray Laser Scan + 2.5x Macro Component Loupe Cutaway (6.0s..11.5s).
-    Uses pre-rendered callout_pills and loupe sprites for maximum frame speed.
+    V3 Non-Destructive Laser Scan (2.8s to reveal_s):
+    Keeps 100% of the giant bright studio product photo visible while sweeping a glowing
+    cyan/emerald laser beam across the cards!
     """
-    scan_phase = (t_cur - 3.5) * 1.75
-    y_scan = int(round(770 + 140 * math.sin(scan_phase * math.pi)))
+    scan_phase = (t_cur - 2.8) * 1.65
+    y_scan = int(round(775 + 185 * math.sin(scan_phase * math.pi)))
 
-    band_half = 48
-    y_top = max(640, y_scan - band_half)
-    y_bot = min(900, y_scan + band_half)
+    # Glowing laser beam across both studio cards without replacing or darkening the product photo
+    d.line([(50, y_scan - 4), (1030, y_scan - 4)], fill=(14, 165, 233), width=2)
+    d.line([(50, y_scan + 4), (1030, y_scan + 4)], fill=(16, 185, 129), width=2)
+    d.line([(45, y_scan), (1035, y_scan)], fill=(34, 211, 238), width=5)
+    d.line([(55, y_scan), (1025, y_scan)], fill=(255, 255, 255), width=2)
 
-    if y_bot > y_top:
-        local_top = y_top - 640
-        local_bot = y_bot - 640
+    # Corner forensic reticle brackets on left studio card
+    for bx0, by0, bx1, by1, col in [
+        (55, 560, 501, 990, (34, 211, 238)),
+        (579, 560, 1025, 990, (16, 185, 129)),
+    ]:
+        d.line([(bx0, by0 + 28), (bx0, by0), (bx0 + 28, by0)], fill=col, width=5)
+        d.line([(bx1 - 28, by0), (bx1, by0), (bx1, by0 + 28)], fill=col, width=5)
 
-        left_band = states["left_xray_photo"].crop((0, local_top, 410, local_bot))
-        right_band = states["right_xray_photo"].crop((0, local_top, 410, local_bot))
-
-        frame.paste(left_band, (75, y_top))
-        frame.paste(right_band, (595, y_top))
-
-        d.rectangle([75, y_top, 485, y_bot], outline=(34, 211, 238), width=3)
-        d.rectangle([595, y_top, 1005, y_bot], outline=(16, 185, 129), width=3)
-
-    d.line([(55, y_scan - 3), (1025, y_scan - 3)], fill=(14, 165, 233), width=3)
-    d.line([(55, y_scan + 3), (1025, y_scan + 3)], fill=(14, 165, 233), width=3)
-    d.line([(50, y_scan), (1030, y_scan)], fill=(34, 211, 238), width=6)
-    d.line([(60, y_scan), (1020, y_scan)], fill=(255, 255, 255), width=2)
-
-    # Pattern Interrupt #2: 2.5x Macro Component Loupe Cutaway (6.0s .. 11.5s)
-    if 6.0 <= t_cur <= 11.5:
-        loupe = states["loupe_a"] if int(t_cur * 4) % 2 == 0 else states["loupe_b"]
-        frame.paste(loupe.convert("RGB"), (400, 625), loupe.split()[3])
-    else:
-        pills = states["callout_pills"]
-        cp_sprite = pills[int((t_cur - 3.5) / 1.8) % len(pills)]
-        pill_y = max(585, min(895, (y_scan - 70) if y_scan > 720 else (y_scan + 25)))
-        frame.paste(cp_sprite, (185, pill_y))
+    # Sleek floating spec callout pill at top edge of photo region (never covering product center)
+    pills = states["callout_pills"]
+    cp_sprite = pills[int((t_cur - 2.8) / 1.8) % len(pills)]
+    frame.paste(cp_sprite, (200, 548))
 
 
 def group_phrases_with_words(word_items, total_dur, text):
@@ -887,14 +928,14 @@ def group_phrases_with_words(word_items, total_dur, text):
 
 
 def render_karaoke_caption_box(words_list, active_idx):
-    CW, CH = 980, 235
+    CW, CH = 900, 174
     card = Image.new("RGB", (CW, CH), (12, 17, 28))
     cd = ImageDraw.Draw(card)
-    cd.rounded_rectangle([0, 0, CW - 1, CH - 1], radius=26, fill=(12, 17, 28), outline=(34, 211, 238), width=4)
-    cd.rounded_rectangle([6, 6, CW - 7, CH - 7], radius=22, outline=(251, 191, 36), width=2)
+    cd.rounded_rectangle([0, 0, CW - 1, CH - 1], radius=24, fill=(12, 17, 28), outline=(34, 211, 238), width=4)
+    cd.rounded_rectangle([6, 6, CW - 7, CH - 7], radius=20, outline=(251, 191, 36), width=2)
 
-    f_word = get_font(48)
-    f_active = get_font(52)
+    f_word = get_font(42)
+    f_active = get_font(46)
 
     n = len(words_list)
     if n <= 2:
@@ -904,13 +945,13 @@ def render_karaoke_caption_box(words_list, active_idx):
         lines = [list(enumerate(words_list[:mid])), list(enumerate(words_list[mid:], start=mid))]
 
     for line_idx, line_items in enumerate(lines):
-        y_center = (CH // 2) if len(lines) == 1 else (74 + line_idx * 90)
+        y_center = (CH // 2) if len(lines) == 1 else (54 + line_idx * 68)
         widths = []
         for w_idx, w_obj in line_items:
             f_use = f_active if w_idx == active_idx else f_word
             bb = cd.textbbox((0, 0), w_obj["word"], font=f_use)
             widths.append(max(20, bb[2] - bb[0]))
-        gap = 22
+        gap = 18
         total_w = sum(widths) + gap * max(0, len(line_items) - 1)
         x_cur = (CW - total_w) // 2
 
@@ -922,8 +963,8 @@ def render_karaoke_caption_box(words_list, active_idx):
                 pill_fill = (16, 185, 129) if is_money else (251, 191, 36)
                 txt_fill = (10, 13, 20)
                 cd.rounded_rectangle(
-                    [x_cur - 12, y_center - 36, x_cur + w_px + 12, y_center + 34],
-                    radius=14,
+                    [x_cur - 10, y_center - 30, x_cur + w_px + 10, y_center + 28],
+                    radius=12,
                     fill=pill_fill,
                     outline=(255, 255, 255),
                     width=3,
@@ -1048,7 +1089,7 @@ FTC & UK ASA Affiliate Disclosure: As an Amazon Associate (UK pricexray-21 & US 
 
         word_items = synthesize_vo_with_fallback(short_vo_text, vo_mp3, day_num=day_num, prefer_local=(day_num > 30))
         duration_s = get_duration(vo_mp3) + 0.12
-        reveal_s = max(4.5, duration_s * 0.68)
+        reveal_s = max(4.5, duration_s * 0.50)
 
         build_sfx(duration_s, reveal_s, sfx_wav)
         subprocess.run([
@@ -1064,26 +1105,26 @@ FTC & UK ASA Affiliate Disclosure: As an Amazon Associate (UK pricexray-21 & US 
         phrases = group_phrases_with_words(word_items, duration_s, short_vo_text)
         precompute_caption_sprites(phrases)
 
-        fps = 14 if day_num <= 60 else 8
+        fps = 24 if day_num <= 100 else 15
         total_frames = int(math.ceil(duration_s * fps))
-        f_timer = get_font(33)
+        f_timer = get_font(29)
         f_vs = get_font(42)
 
         cmd = [
             FFMPEG_BIN, "-y",
-            "-threads", "1",
+            "-threads", "2",
             "-f", "rawvideo", "-vcodec", "rawvideo",
             "-s", "1080x1920", "-pix_fmt", "rgb24", "-r", str(fps),
             "-i", "-", "-i", mixed_aac,
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
-            "-maxrate", "2500k", "-bufsize", "5000k", "-g", str(fps * 2),
-            "-threads", "1",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+            "-maxrate", "3500k", "-bufsize", "7000k", "-g", str(fps * 2),
+            "-threads", "2",
             "-pix_fmt", "yuv420p",
             "-c:a", "copy", "-shortest", out_mp4
         ]
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
-        unblur_dur = 0.5
+        unblur_dur = 0.45
         unblur_radii = states["unblur_radii"]
         unblur_frames = states["unblur_frames"]
         locked_zoom_frames = states["locked_zoom_frames"]
@@ -1095,71 +1136,66 @@ FTC & UK ASA Affiliate Disclosure: As an Amazon Associate (UK pricexray-21 & US 
             t_cur = idx / fps
             is_rev = t_cur >= reveal_s
 
-            z_wave = 0.5 - 0.5 * math.cos(t_cur * 1.1)
+            z_wave = 0.5 - 0.5 * math.cos(t_cur * 1.15)
             z_idx = min(n_zooms - 1, int(round(z_wave * (n_zooms - 1))))
             mb_sprite = mystery_badges[int(t_cur * 4) % 2]
 
             # ------------------------------------------------------------------
-            # 4-PHASE VISUAL STORYTELLING PER FRAME (100% Pre-Cached Sprites)
+            # V3 HERO PRODUCT PHOTO 4-PHASE VISUAL STORYTELLING (24 FPS)
             # ------------------------------------------------------------------
-            if t_cur < 2.2:
-                # Phase 0 (0.0s .. 2.2s): High-Impact Split VS Hook + Ken Burns Zoom
+            if t_cur < 2.8:
+                # Phase 0 & 1 (0.0s .. 2.8s): Giant Studio Product Photos + Pulsing VS Clash Badge
                 frame = locked_zoom_frames[z_idx].copy()
-                frame.paste(mb_sprite, (588, 926))
+                frame.paste(mb_sprite, (597, 896))
                 d = ImageDraw.Draw(frame)
-                vs_r = 48 + int(6 * math.sin(t_cur * 12.0))
-                d.ellipse([540 - vs_r, 765 - vs_r, 540 + vs_r, 765 + vs_r], fill=(239, 68, 68), outline=(255, 255, 255), width=5)
-                d.text((540, 765), "VS", font=f_vs, fill=(255, 255, 255), anchor="mm")
-            elif t_cur < 3.5:
-                # Phase 1 (2.2s .. 3.5s): Forensic Lock-On + Ken Burns Zoom
-                frame = locked_zoom_frames[z_idx].copy()
-                frame.paste(mb_sprite, (588, 926))
-                d = ImageDraw.Draw(frame)
+                vs_r = 48 + (int(5 * math.sin(t_cur * 12.0)) if t_cur < 2.0 else 0)
+                d.ellipse([540 - vs_r, 775 - vs_r, 540 + vs_r, 775 + vs_r], fill=(239, 68, 68), outline=(255, 255, 255), width=5)
+                d.text((540, 775), "VS", font=f_vs, fill=(255, 255, 255), anchor="mm")
             elif t_cur < reveal_s:
-                # Phase 2 (3.5s .. reveal_s): Dynamic X-Ray Laser Scan + 2.5x Macro Loupe Cutaway (6.0s..11.5s)
+                # Phase 2 (2.8s .. reveal_s): Non-Destructive Laser Scan Over Full-Color Giant Product Photos
                 frame = locked_zoom_frames[z_idx].copy()
+                frame.paste(mb_sprite, (597, 896))
                 d = ImageDraw.Draw(frame)
                 apply_phase2_xray_laser_scan(frame, d, t_cur, states)
-                frame.paste(mb_sprite, (588, 926))
+                d.ellipse([496, 731, 584, 819], fill=(239, 68, 68), outline=(255, 255, 255), width=4)
+                d.text((540, 775), "VS", font=get_font(36), fill=(255, 255, 255), anchor="mm")
             elif t_cur < reveal_s + unblur_dur:
-                # Phase 3a: Smooth Unblur Reveal (reveal_s .. reveal_s + 0.5s)
+                # Phase 3a: Smooth Unblur Reveal (reveal_s .. reveal_s + 0.45s)
                 u_prog = min(1.0, max(0.0, (t_cur - reveal_s) / unblur_dur))
-                target_r = 20.0 * (1.0 - u_prog)
+                target_r = 11.0 * (1.0 - u_prog)
                 nearest_r = min(unblur_radii, key=lambda r: abs(r - target_r))
                 frame = unblur_frames[nearest_r].copy()
                 d = ImageDraw.Draw(frame)
-                sweep_y = int(390 + 720 * u_prog)
-                d.rounded_rectangle([556, 386, 1044, 1114], radius=32, outline=(52, 245, 175), width=8)
-                d.line([(560, sweep_y), (1040, sweep_y)], fill=(52, 245, 175), width=6)
+                sweep_y = int(352 + 796 * u_prog)
+                d.rounded_rectangle([552, 348, 1052, 1152], radius=32, outline=(52, 245, 175), width=8)
+                d.line([(556, sweep_y), (1048, sweep_y)], fill=(52, 245, 175), width=6)
             else:
-                # Phase 3b: 100% Crisp Unblurred Real Factory Twin Photo + Ken Burns Zoom + Emerald Glow
+                # Phase 3b: 100% Crisp Unblurred Giant Factory Twin Photo + Ken Burns Zoom + Emerald Glow
                 frame = revealed_zoom_frames[z_idx].copy()
                 cta_sprite = states["cta_post_a"] if int((t_cur - reveal_s) * 2.5) % 2 == 0 else states["cta_post_b"]
-                frame.paste(cta_sprite, (50, 1690))
+                frame.paste(cta_sprite, (32, 1552))
                 d = ImageDraw.Draw(frame)
                 if int((t_cur - reveal_s) * 4) % 2 == 0:
-                    d.rounded_rectangle([556, 386, 1044, 1114], radius=32, outline=(52, 245, 175), width=8)
+                    d.rounded_rectangle([552, 348, 1052, 1152], radius=32, outline=(52, 245, 175), width=8)
+                d.ellipse([496, 731, 584, 819], fill=(16, 185, 129), outline=(255, 255, 255), width=4)
+                d.text((540, 775), "VS", font=get_font(36), fill=(10, 13, 20), anchor="mm")
 
-            # Top Progress / Tension Bar (Zero Tofu ASCII/Pre-Rendered)
+            # Clean Top Progress / Tension Bar (Zero Frame-0 Yellow Square Glitch!)
             if not is_rev:
                 prog = min(1.0, t_cur / reveal_s)
-                d.rounded_rectangle([40, 282, 1040, 362], radius=18, fill=(18, 24, 38), outline=(55, 65, 81), width=3)
-                bw = int(980 * prog)
-                if bw > 12:
-                    bar_col = (34, 211, 238) if t_cur >= 3.5 else (251, 191, 36)
-                    d.rounded_rectangle([50, 292, 50 + bw, 352], radius=12, fill=bar_col)
-                status_prefix = "X-RAY OEM SCAN • UNBLUR IN" if t_cur >= 3.5 else "BRAND TAX AUDIT • UNBLUR IN"
-                d.text(
-                    (540, 322),
-                    f"{status_prefix} {max(0.1, reveal_s - t_cur):0.1f}s...",
-                    font=f_timer,
-                    fill=(10, 13, 20) if prog > 0.52 else (255, 255, 255),
-                    anchor="mm",
-                )
+                d.rounded_rectangle([32, 266, 1048, 336], radius=16, fill=(18, 24, 38), outline=(55, 65, 81), width=3)
+                bw = int(1000 * prog)
+                if bw >= 44:
+                    bar_col = (34, 211, 238) if t_cur >= 2.8 else (251, 191, 36)
+                    d.rounded_rectangle([40, 274, 40 + bw, 328], radius=11, fill=bar_col)
+                status_prefix = "LASER SPEC SCAN • UNBLUR IN" if t_cur >= 2.8 else "BRAND TAX AUDIT • UNBLUR IN"
+                lbl_txt = f"{status_prefix} {max(0.1, reveal_s - t_cur):0.1f}s..."
+                d.rounded_rectangle([210, 279, 870, 323], radius=10, fill=(10, 13, 20))
+                d.text((540, 301), lbl_txt, font=f_timer, fill=(255, 255, 255), anchor="mm")
             else:
-                frame.paste(states["top_unlocked"], (40, 282))
+                frame.paste(states["top_unlocked"], (32, 266))
 
-            # Pre-cached Word-by-Word Karaoke Caption Box
+            # Pre-cached Word-by-Word Karaoke Caption Box (Safe left of YouTube right icon rail!)
             for p in phrases:
                 if p["start"] <= t_cur <= p["end"]:
                     w_list = p["words"]
@@ -1167,13 +1203,17 @@ FTC & UK ASA Affiliate Disclosure: As an Amazon Associate (UK pricexray-21 & US 
                     for wi, w_obj in enumerate(w_list):
                         if t_cur >= w_obj["start"]:
                             act_i = wi
-                    frame.paste(p["sprites"][act_i], (50, 1420))
+                    frame.paste(p["sprites"][act_i], (32, 1354))
                     break
 
             proc.stdin.write(frame.tobytes())
 
         proc.stdin.close()
         proc.wait()
+
+    thumbs_dir = os.path.join(BASE_DIR, "thumbnails")
+    os.makedirs(thumbs_dir, exist_ok=True)
+    states["thumb_img"].save(os.path.join(thumbs_dir, f"Day_{day_num:02d}_Thumbnail.jpg"), "JPEG", quality=92)
 
     if os.path.exists(vid_copy_mp4):
         os.remove(vid_copy_mp4)

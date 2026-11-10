@@ -420,7 +420,7 @@ def build_description(item, day_num=None):
         f"⏭️ Next Teardown (Episode #{next_day:03d}): {next_episode_link}\n"
         f"⏮️ Previous Teardown (Episode #{prev_day:03d}): {prev_episode_link}\n"
         f"📺 Full Series Playlist: {FLAGSHIP_PLAYLIST_URL}\n"
-        f"🔥 Episode #01 ($230 / £180 Ray-Ban vs $24 / £19 Mazzucchelli Twin): https://youtube.com/shorts/dXFV2ovYQts\n\n"
+        f"🔥 Episode #01 ($230 / £180 Ray-Ban vs $24 / £19 Mazzucchelli Twin): https://youtube.com/shorts/1IYok3PLHjs\n\n"
         f"🔎 High-Intent Buyer Topics: {left_brand} vs {right_twin}, is {left_brand} worth it, "
         f"best {left_brand} alternative 2026 UK & US, {right_twin} review, {left_brand} dupe, same factory OEM products.\n\n"
         f"#Shorts #YouTubeShorts #PriceXRay #FactoryTwin #SameFactory #AmazonFinds #AmazonUK #UKDeals #USDeals #Dupes #DupesVsOriginals #SmartShopping #MoneySavingTips #OverpricedBrands #TikTokMadeMeBuyIt #AmazonMustHaves #ViralProducts {niche_tags}\n\n"
@@ -648,8 +648,8 @@ def setup_channel_branding(youtube, upload_banner=True):
                     "\"apple alternative\" \"consumer advocacy\""
                 )
                 ch_cfg["defaultLanguage"] = "en-US"
-                ch_cfg["country"] = "US"
-                ch_cfg["unsubscribedTrailer"] = "dXFV2ovYQts"
+                ch_cfg["country"] = "GB"
+                ch_cfg["unsubscribedTrailer"] = "1IYok3PLHjs"
                 ch_cfg["showRelatedChannels"] = True
                 ch_cfg["showBrowseView"] = True
                 youtube.channels().update(
@@ -804,11 +804,18 @@ def ensure_launch_cluster_and_above_fold_links(youtube, all_days):
         title = build_algorithmic_title(item, day_num)
         description = build_description(item, day_num)
         tags = build_buyer_seo_tags(item)
-        is_launch_public = (day_num in [1, 2, 3, 4]) or (info.get("status") == "PUBLIC_LIVE")
-        status_body = {"privacyStatus": "public", "selfDeclaredMadeForKids": False} if is_launch_public else {
+        is_launch_public = (day_num == 1) or (info.get("status") == "PUBLIC_LIVE")
+        status_body = {
+            "privacyStatus": "public",
+            "selfDeclaredMadeForKids": False,
+            "embeddable": True,
+            "publicStatsViewable": True,
+        } if is_launch_public else {
             "privacyStatus": "private",
             "publishAt": info.get("publish_at", "2026-11-11T13:00:00Z"),
             "selfDeclaredMadeForKids": False,
+            "embeddable": True,
+            "publicStatsViewable": True,
         }
         try:
             youtube.videos().update(
@@ -819,7 +826,7 @@ def ensure_launch_cluster_and_above_fold_links(youtube, all_days):
                         "title": title,
                         "description": description,
                         "tags": tags,
-                        "categoryId": "28",
+                        "categoryId": "26",
                         "defaultLanguage": "en-US",
                         "defaultAudioLanguage": "en-US",
                     },
@@ -867,7 +874,7 @@ def update_existing_video_links(youtube, all_days):
                         "title": title,
                         "description": description,
                         "tags": tags,
-                        "categoryId": "28",
+                        "categoryId": "26",
                         "defaultLanguage": "en-US",
                         "defaultAudioLanguage": "en-US",
                     },
@@ -929,7 +936,7 @@ def reupload_thumbnails(youtube, all_days):
                         "title": title,
                         "description": description,
                         "tags": build_buyer_seo_tags(item),
-                        "categoryId": "28",
+                        "categoryId": "26",
                         "defaultLanguage": "en-US",
                         "defaultAudioLanguage": "en-US",
                     },
@@ -988,7 +995,7 @@ def realign_existing_scheduled_videos(youtube, all_days):
                     "title": title,
                     "description": description,
                     "tags": build_buyer_seo_tags(item) if item else ["PriceXRay", "FactoryTwin", "Shorts"],
-                    "categoryId": "28",
+                    "categoryId": "26",
                     "defaultLanguage": "en-US",
                     "defaultAudioLanguage": "en-US",
                 },
@@ -996,6 +1003,8 @@ def realign_existing_scheduled_videos(youtube, all_days):
                     "privacyStatus": "private",
                     "publishAt": slot_iso,
                     "selfDeclaredMadeForKids": False,
+                    "embeddable": True,
+                    "publicStatsViewable": True,
                 },
                 "localizations": build_tier1_localizations(title, description),
             },
@@ -1083,7 +1092,7 @@ def upload_day(youtube, item, publish_at_iso=None, post_comment=False, set_thumb
             "title": title,
             "description": description,
             "tags": build_buyer_seo_tags(item),
-            "categoryId": "28",
+            "categoryId": "26",
             "defaultLanguage": "en-US",
             "defaultAudioLanguage": "en-US",
         },
@@ -1129,6 +1138,11 @@ def upload_day(youtube, item, publish_at_iso=None, post_comment=False, set_thumb
                 print(f"⚠ Note on thumbnail upload for Day {day_num:02d}: {e}", flush=True)
 
     log_data = load_uploaded_log()
+    did_comment = False
+    if post_comment and not publish_at_iso:
+        post_affiliate_comment(youtube, video_id, item)
+        did_comment = True
+
     entry = {
         "video_id": video_id,
         "url": f"https://youtube.com/shorts/{video_id}",
@@ -1137,14 +1151,14 @@ def upload_day(youtube, item, publish_at_iso=None, post_comment=False, set_thumb
         "amazon_affiliate_link": build_amazon_affiliate_url(item),
         "aliexpress_wholesale_link": build_aliexpress_wholesale_url(item),
         "storefront_link": f"{LIVE_STOREFRONT_URL}#day-{day_num}",
+        "comment_posted": did_comment,
+        "launch_cluster_v2_synced": True,
+        "multi_hashtag_v2_synced": True,
     }
     if publish_at_iso:
         entry["publish_at"] = publish_at_iso
     log_data[str(day_num)] = entry
     save_uploaded_log(log_data)
-
-    if post_comment and not publish_at_iso:
-        post_affiliate_comment(youtube, video_id, item)
 
     return video_id
 
@@ -1255,8 +1269,8 @@ def main():
             return
         slots = generate_next_4x_daily_slots(uploaded, len(target_days))
         for idx_b, (d, pub_iso) in enumerate(zip(target_days, slots)):
-            # Publish the first video of the batch (e.g. Day 11 V2 Studio) immediately as PUBLIC LIVE!
-            use_pub = None if (idx_b == 0 and d == 11) else pub_iso
+            # Publish Episode #01 immediately as PUBLIC LIVE if starting from zero; schedule all subsequent episodes cleanly!
+            use_pub = None if (idx_b == 0 and d == 1) else pub_iso
             try:
                 upload_day(yt, all_days[d], publish_at_iso=use_pub, post_comment=(use_pub is None), set_thumbnail=True)
             except Exception as e:

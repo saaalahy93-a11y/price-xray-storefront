@@ -643,7 +643,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           <div class="w-full max-w-[260px] aspect-[9/16] rounded-2xl overflow-hidden border border-xray/40 bg-carbon shadow-xl">
             <iframe
               id="flagship-short-iframe"
-              src="https://www.youtube-nocookie.com/embed/dXFV2ovYQts?rel=0&playsinline=1"
+              src="https://www.youtube-nocookie.com/embed/1IYok3PLHjs?rel=0&playsinline=1"
               title="Price X-Ray Episode #01: $230 Designer Sunglasses vs. $24 Mazzucchelli Acetate Twin"
               class="w-full h-full"
               loading="lazy"
@@ -659,12 +659,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
           <h2>Watch the 45-Second Lab Teardown &amp; Binge the Launch Cluster</h2>
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            Every day at <strong>15:00 UTC</strong>, we publish a new 60fps forensic Bill-of-Materials teardown exposing the exact Tier-1 OEM factory behind a $100–$1,600 retail brand. Watch Episode #001 directly in the player or switch episodes below:
+            Every 6 hours across peak US &amp; UK shopping windows, we publish a new forensic Bill-of-Materials teardown exposing the exact Tier-1 OEM factory behind a $100–$1,600 retail brand. Watch Episode #001 directly in the player or switch episodes below:
           </p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
             <button
               type="button"
-              onclick="document.getElementById('flagship-short-iframe').src='https://www.youtube-nocookie.com/embed/dXFV2ovYQts?rel=0&playsinline=1&autoplay=1'; jumpToVideo(1);"
+              onclick="document.getElementById('flagship-short-iframe').src='https://www.youtube-nocookie.com/embed/1IYok3PLHjs?rel=0&playsinline=1&autoplay=1'; jumpToVideo(1);"
               class="text-left p-2.5 rounded-xl bg-carbon hover:bg-surface border border-xray/40 transition cursor-pointer"
             >
               <div class="text-[10px] font-mono text-xray font-bold">▶ EPISODE #001 • EYEWEAR</div>
