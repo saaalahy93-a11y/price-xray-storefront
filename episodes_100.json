@@ -441,7 +441,7 @@
     "savings_gbp": "£142",
     "youtube_video_id": "Ow5a9KV9-WQ",
     "youtube_shorts_url": "https://youtube.com/shorts/Ow5a9KV9-WQ",
-    "youtube_publish_status": "SCHEDULED"
+    "youtube_publish_status": "PUBLIC_LIVE"
   },
   {
     "day": 4,
@@ -589,7 +589,7 @@
     "savings_gbp": "£142",
     "youtube_video_id": "1qJqXWGKSlU",
     "youtube_shorts_url": "https://youtube.com/shorts/1qJqXWGKSlU",
-    "youtube_publish_status": "SCHEDULED"
+    "youtube_publish_status": "PUBLIC_LIVE"
   },
   {
     "day": 5,
@@ -734,7 +734,10 @@
     "ebay_uk_epn_url": "https://www.ebay.co.uk/sch/i.html?_nkw=Besign+LS03+Aluminum+Laptop+Stand+Ergonomic+Detachable+Space+Gray&mkcid=1&mkrid=710-53481-19255-0&campid=5339000000&customid=pricexray-uk-day-005",
     "left_price_gbp": "£55",
     "right_price_gbp": "£13",
-    "savings_gbp": "£142"
+    "savings_gbp": "£142",
+    "youtube_video_id": "D8psa2Mdt3A",
+    "youtube_shorts_url": "https://youtube.com/shorts/D8psa2Mdt3A",
+    "youtube_publish_status": "SCHEDULED"
   },
   {
     "day": 6,

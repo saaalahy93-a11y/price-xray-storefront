@@ -27,12 +27,12 @@
   "3": {
     "video_id": "Ow5a9KV9-WQ",
     "url": "https://youtube.com/shorts/Ow5a9KV9-WQ",
-    "status": "SCHEDULED",
+    "status": "PUBLIC_LIVE",
     "title": "$429 Dyson vs $69 Laifen 110K Twin #Shorts #AmazonFinds #Dupes #BeautyHacks #PriceXRay",
     "amazon_affiliate_link": "https://www.amazon.com/s?k=Laifen+SE+Lite+Dreame+Gleam+High+Speed+Hair+Dryer+110000+RPM+Brushless+Motor&tag=pricexray-20",
     "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-Laifen-SE-Lite-Dreame-Gleam-High-Speed-Hair-Dryer-110000-RPM-Brushless-Motor.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
     "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-3",
-    "comment_posted": false,
+    "comment_posted": true,
     "launch_cluster_v2_synced": true,
     "multi_hashtag_v2_synced": true,
     "publish_at": "2026-11-11T07:00:00Z"
@@ -40,14 +40,27 @@
   "4": {
     "video_id": "1qJqXWGKSlU",
     "url": "https://youtube.com/shorts/1qJqXWGKSlU",
-    "status": "SCHEDULED",
+    "status": "PUBLIC_LIVE",
     "title": "$1,600 Herman Miller vs $149 Mesh Twin #Shorts #AmazonFinds #Dupes #DeskSetup #PriceXRay",
     "amazon_affiliate_link": "https://www.amazon.com/s?k=Sihoo+M57+Staples+Hyken+Ergonomic+Mesh+Office+Chair+BIFMA+Class+4+Gas+Lift&tag=pricexray-20",
     "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-Sihoo-M57-Staples-Hyken-Ergonomic-Mesh-Office-Chair-BIFMA-Class-4-Gas-Lift.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
     "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-4",
-    "comment_posted": false,
+    "comment_posted": true,
     "launch_cluster_v2_synced": true,
     "multi_hashtag_v2_synced": true,
     "publish_at": "2026-11-11T13:00:00Z"
+  },
+  "5": {
+    "video_id": "D8psa2Mdt3A",
+    "url": "https://youtube.com/shorts/D8psa2Mdt3A",
+    "status": "SCHEDULED",
+    "title": "$70 Twelve South vs $16 Aluminum Twin #Shorts #AmazonFinds #Dupes #TechHacks #PriceXRay",
+    "amazon_affiliate_link": "https://www.amazon.com/s?k=Besign+LS03+Aluminum+Laptop+Stand+Ergonomic+Detachable+Space+Gray&tag=pricexray-20",
+    "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-Besign-LS03-Aluminum-Laptop-Stand-Ergonomic-Detachable-Space-Gray.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
+    "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-5",
+    "comment_posted": false,
+    "launch_cluster_v2_synced": true,
+    "multi_hashtag_v2_synced": true,
+    "publish_at": "2026-11-12T01:00:00Z"
   }
 }
