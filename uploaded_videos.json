@@ -14,7 +14,7 @@
   "2": {
     "video_id": "DMKTN1v0QS0",
     "url": "https://youtube.com/shorts/DMKTN1v0QS0",
-    "status": "SCHEDULED",
+    "status": "PUBLIC_LIVE",
     "title": "$50 Stanley/Yeti vs $19 Steel Twin #Shorts #AmazonFinds #Dupes #EDCHacks #PriceXRay",
     "amazon_affiliate_link": "https://www.amazon.com/s?k=Simple+Modern+Trek+40oz+Tumbler+with+Handle+18%2F8+Stainless+Steel+Copper+Lined&tag=pricexray-20",
     "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-Simple-Modern-Trek-40oz-Tumbler-with-Handle-18-8-Stainless-Steel-Copper-Lined.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
@@ -22,7 +22,7 @@
     "publish_at": "2026-11-11T01:00:00Z",
     "launch_cluster_v2_synced": true,
     "multi_hashtag_v2_synced": true,
-    "comment_posted": false
+    "comment_posted": true
   },
   "3": {
     "video_id": "Ow5a9KV9-WQ",
@@ -36,5 +36,18 @@
     "launch_cluster_v2_synced": true,
     "multi_hashtag_v2_synced": true,
     "publish_at": "2026-11-11T07:00:00Z"
+  },
+  "4": {
+    "video_id": "1qJqXWGKSlU",
+    "url": "https://youtube.com/shorts/1qJqXWGKSlU",
+    "status": "SCHEDULED",
+    "title": "$1,600 Herman Miller vs $149 Mesh Twin #Shorts #AmazonFinds #Dupes #DeskSetup #PriceXRay",
+    "amazon_affiliate_link": "https://www.amazon.com/s?k=Sihoo+M57+Staples+Hyken+Ergonomic+Mesh+Office+Chair+BIFMA+Class+4+Gas+Lift&tag=pricexray-20",
+    "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-Sihoo-M57-Staples-Hyken-Ergonomic-Mesh-Office-Chair-BIFMA-Class-4-Gas-Lift.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
+    "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-4",
+    "comment_posted": false,
+    "launch_cluster_v2_synced": true,
+    "multi_hashtag_v2_synced": true,
+    "publish_at": "2026-11-11T13:00:00Z"
   }
 }
