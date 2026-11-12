@@ -885,7 +885,7 @@
     "savings_gbp": "£142",
     "youtube_video_id": "lKnGpWefRWU",
     "youtube_shorts_url": "https://youtube.com/shorts/lKnGpWefRWU",
-    "youtube_publish_status": "SCHEDULED"
+    "youtube_publish_status": "PUBLIC_LIVE"
   },
   {
     "day": 7,
@@ -1030,7 +1030,10 @@
     "ebay_uk_epn_url": "https://www.ebay.co.uk/sch/i.html?_nkw=Cable+Matters+Intel+Certified+40Gbps+Braided+Thunderbolt+4+Cable+240W+Charging&mkcid=1&mkrid=710-53481-19255-0&campid=5339000000&customid=pricexray-uk-day-007",
     "left_price_gbp": "£102",
     "right_price_gbp": "£15",
-    "savings_gbp": "£142"
+    "savings_gbp": "£142",
+    "youtube_video_id": "WCwFabx8JYI",
+    "youtube_shorts_url": "https://youtube.com/shorts/WCwFabx8JYI",
+    "youtube_publish_status": "SCHEDULED"
   },
   {
     "day": 8,
