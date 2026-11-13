@@ -1181,7 +1181,7 @@
     "savings_gbp": "£142",
     "youtube_video_id": "fvELiToUd9E",
     "youtube_shorts_url": "https://youtube.com/shorts/fvELiToUd9E",
-    "youtube_publish_status": "SCHEDULED"
+    "youtube_publish_status": "PUBLIC_LIVE"
   },
   {
     "day": 9,
@@ -1326,7 +1326,10 @@
     "ebay_uk_epn_url": "https://www.ebay.co.uk/sch/i.html?_nkw=AULA+F75+75%25+Wireless+Mechanical+Keyboard+Gasket+Pre-lubed+Linear+Switches+PBT&mkcid=1&mkrid=710-53481-19255-0&campid=5339000000&customid=pricexray-uk-day-009",
     "left_price_gbp": "£182",
     "right_price_gbp": "£39",
-    "savings_gbp": "£142"
+    "savings_gbp": "£142",
+    "youtube_video_id": "SyiGvTnWEVg",
+    "youtube_shorts_url": "https://youtube.com/shorts/SyiGvTnWEVg",
+    "youtube_publish_status": "SCHEDULED"
   },
   {
     "day": 10,
