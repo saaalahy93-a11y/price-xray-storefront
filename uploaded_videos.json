@@ -79,14 +79,27 @@
   "7": {
     "video_id": "WCwFabx8JYI",
     "url": "https://youtube.com/shorts/WCwFabx8JYI",
-    "status": "SCHEDULED",
+    "status": "PUBLIC_LIVE",
     "title": "$129 Apple TB4 Cable vs $19 Intel Twin #Shorts #AmazonFinds #Dupes #TechHacks #PriceXRay",
     "amazon_affiliate_link": "https://www.amazon.com/s?k=Cable+Matters+Intel+Certified+40Gbps+Braided+Thunderbolt+4+Cable+240W+Charging&tag=pricexray-20",
     "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-Cable-Matters-Intel-Certified-40Gbps-Braided-Thunderbolt-4-Cable-240W-Charging.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
     "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-7",
-    "comment_posted": false,
+    "comment_posted": true,
     "launch_cluster_v2_synced": true,
     "multi_hashtag_v2_synced": true,
     "publish_at": "2026-11-13T01:00:00Z"
+  },
+  "8": {
+    "video_id": "fvELiToUd9E",
+    "url": "https://youtube.com/shorts/fvELiToUd9E",
+    "status": "SCHEDULED",
+    "title": "$299 Sony/Bose ANC vs $55 Qualcomm Twin #Shorts #AmazonFinds #Dupes #AudioHacks #PriceXRay",
+    "amazon_affiliate_link": "https://www.amazon.com/s?k=EarFun+Air+Pro+4+Adaptive+Hybrid+Noise+Cancelling+Earbuds+Qualcomm+aptX+Lossless+LDAC&tag=pricexray-20",
+    "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-EarFun-Air-Pro-4-Adaptive-Hybrid-Noise-Cancelling-Earbuds-Qualcomm-aptX-Lossless-LDAC.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
+    "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-8",
+    "comment_posted": false,
+    "launch_cluster_v2_synced": true,
+    "multi_hashtag_v2_synced": true,
+    "publish_at": "2026-11-13T13:00:00Z"
   }
 }

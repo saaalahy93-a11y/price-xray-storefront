@@ -1033,7 +1033,7 @@
     "savings_gbp": "£142",
     "youtube_video_id": "WCwFabx8JYI",
     "youtube_shorts_url": "https://youtube.com/shorts/WCwFabx8JYI",
-    "youtube_publish_status": "SCHEDULED"
+    "youtube_publish_status": "PUBLIC_LIVE"
   },
   {
     "day": 8,
@@ -1178,7 +1178,10 @@
     "ebay_uk_epn_url": "https://www.ebay.co.uk/sch/i.html?_nkw=EarFun+Air+Pro+4+Adaptive+Hybrid+Noise+Cancelling+Earbuds+Qualcomm+aptX+Lossless+LDAC&mkcid=1&mkrid=710-53481-19255-0&campid=5339000000&customid=pricexray-uk-day-008",
     "left_price_gbp": "£236",
     "right_price_gbp": "£43",
-    "savings_gbp": "£142"
+    "savings_gbp": "£142",
+    "youtube_video_id": "fvELiToUd9E",
+    "youtube_shorts_url": "https://youtube.com/shorts/fvELiToUd9E",
+    "youtube_publish_status": "SCHEDULED"
   },
   {
     "day": 9,
