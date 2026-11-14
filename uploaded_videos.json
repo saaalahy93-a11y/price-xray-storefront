@@ -105,14 +105,27 @@
   "9": {
     "video_id": "SyiGvTnWEVg",
     "url": "https://youtube.com/shorts/SyiGvTnWEVg",
-    "status": "SCHEDULED",
+    "status": "PUBLIC_LIVE",
     "title": "$230 Razer Keyboard vs $49 AULA F75 Twin #Shorts #AmazonFinds #Dupes #GamingSetup #PriceXRay",
     "amazon_affiliate_link": "https://www.amazon.com/s?k=AULA+F75+75%25+Wireless+Mechanical+Keyboard+Gasket+Pre-lubed+Linear+Switches+PBT&tag=pricexray-20",
     "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-AULA-F75-75-Wireless-Mechanical-Keyboard-Gasket-Pre-lubed-Linear-Switches-PBT.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
     "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-9",
-    "comment_posted": false,
+    "comment_posted": true,
     "launch_cluster_v2_synced": true,
     "multi_hashtag_v2_synced": true,
     "publish_at": "2026-11-14T01:00:00Z"
+  },
+  "10": {
+    "video_id": "7uccXPbA3CU",
+    "url": "https://youtube.com/shorts/7uccXPbA3CU",
+    "status": "SCHEDULED",
+    "title": "$189 BenQ ScreenBar vs $34 Quntis Twin #Shorts #AmazonFinds #Dupes #DeskSetup #PriceXRay",
+    "amazon_affiliate_link": "https://www.amazon.com/s?k=Quntis+Computer+Monitor+Lamp+with+Wireless+Remote+CRI95+Asymmetric+Optical+Light+Bar&tag=pricexray-20",
+    "aliexpress_wholesale_link": "https://www.aliexpress.com/w/wholesale-Quntis-Computer-Monitor-Lamp-with-Wireless-Remote-CRI95-Asymmetric-Optical-Light-Bar.html?aff_fsk=_c3Z2E4OR&aff_platform=portals-tool&sk=_c3Z2E4OR&tt=CPS_NORMAL",
+    "storefront_link": "https://saaalahy93-a11y.github.io/price-xray-storefront/#day-10",
+    "comment_posted": false,
+    "launch_cluster_v2_synced": true,
+    "multi_hashtag_v2_synced": true,
+    "publish_at": "2026-11-14T07:00:00Z"
   }
 }

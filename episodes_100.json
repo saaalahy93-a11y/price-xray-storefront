@@ -1329,7 +1329,7 @@
     "savings_gbp": "£142",
     "youtube_video_id": "SyiGvTnWEVg",
     "youtube_shorts_url": "https://youtube.com/shorts/SyiGvTnWEVg",
-    "youtube_publish_status": "SCHEDULED"
+    "youtube_publish_status": "PUBLIC_LIVE"
   },
   {
     "day": 10,
@@ -1474,7 +1474,10 @@
     "ebay_uk_epn_url": "https://www.ebay.co.uk/sch/i.html?_nkw=Quntis+Computer+Monitor+Lamp+with+Wireless+Remote+CRI95+Asymmetric+Optical+Light+Bar&mkcid=1&mkrid=710-53481-19255-0&campid=5339000000&customid=pricexray-uk-day-010",
     "left_price_gbp": "£149",
     "right_price_gbp": "£27",
-    "savings_gbp": "£142"
+    "savings_gbp": "£142",
+    "youtube_video_id": "7uccXPbA3CU",
+    "youtube_shorts_url": "https://youtube.com/shorts/7uccXPbA3CU",
+    "youtube_publish_status": "SCHEDULED"
   },
   {
     "day": 11,
